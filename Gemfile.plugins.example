@@ -1,0 +1,5 @@
+# Drop this into OpenProject's Gemfile.plugins (or merge the group).
+
+group :opf_plugins do
+  gem "openproject-mattermost", path: "../plugins/openproject-mattermost"
+end

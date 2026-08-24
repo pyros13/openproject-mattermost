@@ -1,0 +1,18 @@
+<div class="form--field">
+  <%= styled_label_tag "settings_server_url", t(:label_mattermost_server_url) %>
+  <div class="form--field-container">
+    <%= styled_text_field_tag "settings[server_url]", settings["server_url"], container_class: "-wide" %>
+  </div>
+</div>
+<div class="form--field">
+  <%= styled_label_tag "settings_bot_token", t(:label_mattermost_bot_token) %>
+  <div class="form--field-container">
+    <%= styled_password_field_tag "settings[bot_token]", settings["bot_token"], container_class: "-wide" %>
+  </div>
+</div>
+<div class="form--field">
+  <%= styled_label_tag "settings_bot_name", t(:label_mattermost_bot_name) %>
+  <div class="form--field-container">
+    <%= styled_text_field_tag "settings[bot_name]", settings["bot_name"] %>
+  </div>
+</div>

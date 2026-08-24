@@ -1,0 +1,29 @@
+en:
+  plugin_openproject_mattermost:
+    name: "OpenProject Mattermost"
+    description: "Post work package status to a Mattermost bot. Updates rewrite the same message (UP). Comments and files go to the thread. One bot, channel id per project."
+  project_module_mattermost: "Mattermost"
+  permission_manage_mattermost: "Manage Mattermost bot"
+  label_mattermost: "Mattermost"
+  label_mattermost_bot: "Bot connection (global)"
+  label_mattermost_server_url: "Mattermost server URL"
+  label_mattermost_bot_token: "Bot token"
+  label_mattermost_bot_name: "Bot display name"
+  label_mattermost_channel: "Channel for this project"
+  label_mattermost_channel_id: "Channel ID"
+  label_mattermost_channel_name: "Channel name"
+  label_mattermost_routing: "What goes where"
+  label_mattermost_bump_on_status: "Rewrite the status card and UP it on status / dates / assignee"
+  label_mattermost_pin_on_bump: "Pin the card after a bump"
+  label_mattermost_thread_comments: "Push comments into the thread"
+  label_mattermost_thread_files: "Push files into the thread"
+  label_mattermost_thread_other: "Push other field changes into the thread"
+  help_mattermost_server_url: "Base URL without /api/v4, for example https://chat.example.com. Shared by every project."
+  help_mattermost_bot_token: "One bot token for the whole instance. Invite that same bot to every project channel."
+  help_mattermost_one_bot_many_channels: "The bot (server URL + token) is global. Each OpenProject project has its own Mattermost channel ID, so one bot can post Kitewell to #kitewell-release and Northwind to #northwind-ops."
+  help_mattermost_channel_id: "Per project. Invite the bot to the channel, then copy Channel ID from Mattermost → channel info. Different projects should use different channel IDs."
+  help_mattermost_channel_name: "Optional label for humans (e.g. kitewell-release). The bot posts using the Channel ID above."
+  activerecord:
+    errors:
+      messages:
+        mattermost_channel_id_blank: "is required when Mattermost is enabled for this project"

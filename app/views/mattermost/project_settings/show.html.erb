@@ -1,0 +1,48 @@
+<% html_title t(:label_mattermost) %>
+
+<p><%= t(:help_mattermost_one_bot_many_channels) %></p>
+
+<%= styled_form_tag(project_mattermost_settings_path(@project), method: :patch) do %>
+  <section class="form--section">
+    <h2><%= t(:label_mattermost_channel) %></h2>
+    <div class="form--field">
+      <%= styled_label_tag "mattermost_project_setting_enabled", t(:label_enabled) %>
+      <div class="form--field-container">
+        <%= hidden_field_tag "mattermost_project_setting[enabled]", "0" %>
+        <%= styled_check_box_tag "mattermost_project_setting[enabled]", "1", @setting.enabled? %>
+      </div>
+    </div>
+    <div class="form--field -required">
+      <%= styled_label_tag "mattermost_project_setting_channel_id", t(:label_mattermost_channel_id) %>
+      <div class="form--field-container">
+        <%= styled_text_field_tag "mattermost_project_setting[channel_id]", @setting.channel_id, container_class: "-wide", placeholder: "e.g. h8f3k2n9p1q4r6s7t0vw" %>
+      </div>
+      <div class="form--field-instructions">
+        <%= t(:help_mattermost_channel_id) %>
+      </div>
+    </div>
+    <div class="form--field">
+      <%= styled_label_tag "mattermost_project_setting_channel_name", t(:label_mattermost_channel_name) %>
+      <div class="form--field-container">
+        <%= styled_text_field_tag "mattermost_project_setting[channel_name]", @setting.channel_name, placeholder: "project-channel" %>
+      </div>
+      <div class="form--field-instructions">
+        <%= t(:help_mattermost_channel_name) %>
+      </div>
+    </div>
+  </section>
+
+  <section class="form--section">
+    <h2><%= t(:label_mattermost_routing) %></h2>
+    <% %w[bump_on_status pin_on_bump thread_comments thread_files thread_other].each do |flag| %>
+      <div class="form--field">
+        <%= styled_label_tag "mattermost_project_setting_#{flag}", t("label_mattermost_#{flag}") %>
+        <div class="form--field-container">
+          <%= hidden_field_tag "mattermost_project_setting[#{flag}]", "0" %>
+          <%= styled_check_box_tag "mattermost_project_setting[#{flag}]", "1", @setting.public_send(flag) %>
+        </div>
+      </div>
+    <% end %>
+  </section>
+  <%= styled_button_tag t(:button_save), class: "-primary" %>
+<% end %>
