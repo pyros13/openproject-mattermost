@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
   DESC
   s.license = "GPL-3.0"
 
-  s.files = Dir["{app,config,db,lib,spec}/**/*"] + %w[README.md CHANGELOG.md LICENSE Gemfile.plugins.example]
+  s.files = Dir["{app,config,db,lib,spec}/**/*"] + %w[README.md CHANGELOG.md LICENSE HOTFIX.md Gemfile.plugins.example]
 
   s.required_ruby_version = ">= 3.2.0"
 

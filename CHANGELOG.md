@@ -4,6 +4,7 @@
 
 - Boot fix for OpenProject 17 / Rails 8.1: drop `include Admin::Settings::SettingsHelper` (that constant is not in core). Admin settings now match the GitHub integration controller (`layout "admin"`, `menu_item`, `require_admin`).
 - Plugin settings partial path is `settings/mattermost` so Administration → Plugins → Configure renders.
+- HOTFIX.md: restarting git SHA `bb7f2c81ad20` is not an update — delete the include in the vendor copy to boot, then rebundle 1.0.2.
 
 ## 1.0.1 — 2026-08-24
 

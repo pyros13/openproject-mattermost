@@ -69,7 +69,21 @@ Use this tree (version 1.0.2+) and run `bundle install` again from the OpenProje
 
 ### Boot: `uninitialized constant Admin::Settings::SettingsHelper`
 
-That error is from **1.0.1 and earlier**. OpenProject 17 does not define that helper. **1.0.2** uses the same admin controller pattern as the bundled GitHub integration (`layout "admin"`, `menu_item`, `require_admin`). Update the gem and restart.
+That line is in **1.0.1 and earlier**. OpenProject is still loading git SHA
+`bb7f2c81ad20` (look at the path under `vendor/bundle/.../bundler/gems/`).
+Restarting that copy will fail the same way.
+
+**One-line hotfix** (site down): in
+
+`.../openproject-mattermost-bb7f2c81ad20/app/controllers/mattermost/admin_settings_controller.rb`
+
+delete `include Admin::Settings::SettingsHelper`, then start OpenProject.
+See [HOTFIX.md](HOTFIX.md).
+
+**Proper fix:** this tree is **1.0.2**. Push/copy it over the gem Bundler
+uses, then `bundle update openproject-mattermost` (packaged: `openproject configure`).
+The vendor SHA must change. Admin settings match the GitHub integration
+controller (`layout "admin"`, `menu_item`, `require_admin`).
 
 ## Mattermost bot
 
