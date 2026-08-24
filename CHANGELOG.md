@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 — 2026-08-24
+
+- Actually post: work-package journals are handled on the same worker event outgoing webhooks use (`aggregated_work_package_journal_ready`), not a second silent job hop.
+- Every skip is logged with `[mattermost]` (disabled, blank channel, missing bot token, not a work package). Look in web and worker journals.
+- Check bot token (Administration) and Send a test post (project Mattermost) so a dead token or wrong channel id is visible immediately.
+- Empty token on save no longer wipes the stored token.
+- Reads plugin settings from both hyphen and underscore keys.
+
 ## 1.0.2 — 2026-08-24
 
 - Boot fix for OpenProject 17 / Rails 8.1: drop `include Admin::Settings::SettingsHelper` (that constant is not in core). Admin settings now match the GitHub integration controller (`layout "admin"`, `menu_item`, `require_admin`).

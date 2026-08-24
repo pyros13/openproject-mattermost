@@ -1,6 +1,7 @@
 <% html_title t(:label_mattermost) %>
 
 <p><%= t(:help_mattermost_one_bot_many_channels) %></p>
+<p><%= t(:help_mattermost_enable_module) %></p>
 
 <%= styled_form_tag(project_mattermost_settings_path(@project), method: :patch) do %>
   <section class="form--section">
@@ -45,4 +46,14 @@
     <% end %>
   </section>
   <%= styled_button_tag t(:button_save), class: "-primary" %>
+<% end %>
+
+<% if @setting.persisted? && @setting.channel_id.present? %>
+  <%= styled_form_tag({ controller: "/mattermost/project_settings", action: :test, project_id: @project }, method: :post) do %>
+    <section class="form--section">
+      <h2><%= t(:label_mattermost_test) %></h2>
+      <p class="form--field-instructions"><%= t(:help_mattermost_test_channel) %></p>
+      <%= styled_button_tag t(:button_mattermost_test_channel) %>
+    </section>
+  <% end %>
 <% end %>

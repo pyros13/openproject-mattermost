@@ -3,17 +3,22 @@
 require "json"
 require "net/http"
 require "uri"
+require "securerandom"
 
 module OpenProject
   module Mattermost
     # Thin Mattermost REST client. Bot token auth. Create, update (bump),
-    # thread replies, file upload, optional pin.
+    # thread replies, file upload, optional pin, /users/me for the test button.
     class Client
       Error = Class.new(StandardError)
 
       def initialize(server_url:, bot_token:)
-        @server_url = server_url.to_s.sub(%r{/+\z}, "").sub(%r{/api/v4\z}, "")
-        @bot_token = bot_token.to_s
+        @server_url = server_url.to_s.strip.sub(%r{/+\z}, "").sub(%r{/api/v4\z}, "")
+        @bot_token = bot_token.to_s.strip
+      end
+
+      def me
+        request(:get, "/users/me")
       end
 
       def create_post(channel_id:, message:, props: {}, root_id: nil, file_ids: [])
@@ -52,8 +57,7 @@ module OpenProject
         blob << data
         blob << "\r\n--#{boundary}--\r\n"
 
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = uri.scheme == "https"
+        http = build_http(uri)
         req = Net::HTTP::Post.new(uri)
         req["Authorization"] = "Bearer #{@bot_token}"
         req["Content-Type"] = "multipart/form-data; boundary=#{boundary}"
@@ -67,29 +71,47 @@ module OpenProject
 
       private
 
-      def request(method, path, body)
+      def request(method, path, body = nil)
         uri = api_uri(path)
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = uri.scheme == "https"
-        klass = method == :put ? Net::HTTP::Put : Net::HTTP::Post
+        http = build_http(uri)
+        klass = case method
+                when :get then Net::HTTP::Get
+                when :put then Net::HTTP::Put
+                else Net::HTTP::Post
+                end
         req = klass.new(uri)
         req["Authorization"] = "Bearer #{@bot_token}"
-        req["Content-Type"] = "application/json"
-        req.body = JSON.generate(body)
+        if body
+          req["Content-Type"] = "application/json"
+          req.body = JSON.generate(body)
+        end
         parse(http.request(req))
       end
 
+      def build_http(uri)
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = uri.scheme == "https"
+        http.open_timeout = 5
+        http.read_timeout = 15
+        http
+      end
+
       def api_uri(path)
+        raise Error, "Mattermost server URL is blank" if @server_url.blank?
+        raise Error, "Mattermost bot token is blank" if @bot_token.blank?
+
         URI.parse("#{@server_url}/api/v4#{path}")
       end
 
       def parse(res)
         json = res.body.present? ? JSON.parse(res.body) : {}
         unless res.is_a?(Net::HTTPSuccess)
-          raise Error, "Mattermost #{res.code}: #{json['message'] || res.body}"
+          raise Error, "Mattermost #{res.code}: #{json['message'] || json['id'] || res.body}"
         end
 
         json
+      rescue JSON::ParserError
+        raise Error, "Mattermost #{res.code}: non-JSON body #{res.body.to_s[0, 200]}"
       end
     end
   end

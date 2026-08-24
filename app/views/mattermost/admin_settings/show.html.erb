@@ -21,7 +21,7 @@
     <div class="form--field">
       <%= styled_label_tag "settings_bot_token", t(:label_mattermost_bot_token) %>
       <div class="form--field-container">
-        <%= styled_password_field_tag "settings[bot_token]", @settings["bot_token"], container_class: "-wide" %>
+        <%= styled_password_field_tag "settings[bot_token]", @settings["bot_token"], container_class: "-wide", autocomplete: "off" %>
       </div>
       <div class="form--field-instructions">
         <%= t(:help_mattermost_bot_token) %>
@@ -35,4 +35,12 @@
     </div>
   </section>
   <%= styled_button_tag t(:button_save), class: "-primary" %>
+<% end %>
+
+<%= styled_form_tag({ controller: "/mattermost/admin_settings", action: :test }, method: :post) do %>
+  <section class="form--section">
+    <h2><%= t(:label_mattermost_test) %></h2>
+    <p class="form--field-instructions"><%= t(:help_mattermost_test_bot) %></p>
+    <%= styled_button_tag t(:button_mattermost_test_bot) %>
+  </section>
 <% end %>

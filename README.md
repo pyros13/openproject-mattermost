@@ -65,7 +65,20 @@ Packaged installations can use a custom Gemfile as described in the
 
 That error is from **1.0.0**, which listed `openproject-plugins ~> 1.0`. That gem is from 2013 and depends on Rails 3.2. **1.0.1+** removes it. Plugin APIs (`ActsAsOpEngine`) already live in OpenProject core, so there is nothing to replace it with — and nothing that should pull Rails from this gem.
 
-Use this tree (version 1.0.2+) and run `bundle install` again from the OpenProject checkout. Do not add `gem "openproject-plugins"` yourself.
+Use this tree (version **1.1.0+**) and rebundle so the vendor SHA is no longer `bb7f2c81ad20`. Do not add `gem "openproject-plugins"` yourself.
+
+### Nothing posted to Mattermost
+
+Outgoing webhooks can fire while this plugin stays quiet if:
+
+1. The **Mattermost module** is off under Project settings → Modules.
+2. **Enabled** is unchecked on Project → Mattermost, or Channel ID is empty.
+3. The bot was not **invited** to that channel (Mattermost then rejects the post).
+4. You are waiting on OpenProject's journal aggregation window (same delay as outgoing webhooks, often a few minutes).
+
+**1.1.0** logs every skip as `[mattermost] …` on web and worker. On boot you should see `[mattermost] 1.1.0 subscribed …`.
+
+Use **Check bot token** (Administration → Integrations → Mattermost) then **Send a test post** on the project. If the test lands and work packages still do not, grep logs for `[mattermost]`.
 
 ### Boot: `uninitialized constant Admin::Settings::SettingsHelper`
 

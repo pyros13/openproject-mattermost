@@ -7,6 +7,7 @@ module Mattermost
 
     def show
       @setting = MattermostProjectSetting.find_or_initialize_by(project: @project)
+      @setting.enabled = true if @setting.new_record?
     end
 
     def update
@@ -17,6 +18,18 @@ module Mattermost
       else
         render :show, status: :unprocessable_entity
       end
+    end
+
+    def test
+      @setting = MattermostProjectSetting.find_or_initialize_by(project: @project)
+      created = OpenProject::Mattermost::Dispatcher.new.test_channel(@setting)
+      flash[:notice] = I18n.t(:notice_mattermost_test_posted, post_id: created["id"])
+    rescue OpenProject::Mattermost::Client::Error => e
+      flash[:error] = e.message
+    rescue StandardError => e
+      flash[:error] = "#{e.class}: #{e.message}"
+    ensure
+      redirect_to project_mattermost_settings_path(@project)
     end
 
     private

@@ -11,6 +11,12 @@ module OpenProject
 
       include OpenProject::Plugins::ActsAsOpEngine
 
+      config.eager_load_paths += %W[
+        #{config.root}/app/workers
+        #{config.root}/app/services
+        #{config.root}/lib
+      ]
+
       def self.settings
         {
           default: {
@@ -31,7 +37,9 @@ module OpenProject
       ) do
         project_module :mattermost, dependencies: :work_package_tracking do
           permission :manage_mattermost,
-                     { "mattermost/project_settings": %i[show update] },
+                     {
+                       "mattermost/project_settings": %i[show update test]
+                     },
                      permissible_on: :project,
                      require: :member
         end
@@ -58,14 +66,29 @@ module OpenProject
 
       initializer "openproject_mattermost.notifications" do |app|
         app.config.after_initialize do
-          OpenProject::Notifications.subscribe(
-            OpenProject::Events::AGGREGATED_WORK_PACKAGE_JOURNAL_READY,
-            &NotificationHandler.method(:aggregated_journal)
-          )
-          OpenProject::Notifications.subscribe(
-            OpenProject::Events::ATTACHMENT_CREATED,
-            &NotificationHandler.method(:attachment_created)
-          )
+          OpenProject::Mattermost::Engine.subscribe_mattermost_notifications!
+          msg = "[mattermost] #{OpenProject::Mattermost::VERSION} subscribed " \
+                "aggregated_work_package_journal_ready, journal_created, attachment_created"
+          Rails.logger.info(msg) if defined?(Rails) && Rails.logger
+          warn(msg)
+        end
+      end
+
+      def self.subscribe_mattermost_notifications!
+        OpenProject::Notifications.subscribe(
+          OpenProject::Events::AGGREGATED_WORK_PACKAGE_JOURNAL_READY
+        ) do |payload|
+          NotificationHandler.aggregated_journal(payload)
+        end
+        OpenProject::Notifications.subscribe(
+          OpenProject::Events::JOURNAL_CREATED
+        ) do |payload|
+          NotificationHandler.journal_created(payload)
+        end
+        OpenProject::Notifications.subscribe(
+          OpenProject::Events::ATTACHMENT_CREATED
+        ) do |payload|
+          NotificationHandler.attachment_created(payload)
         end
       end
     end
