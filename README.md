@@ -1,3 +1,4 @@
+# DONT USE IT, IT'S ALPHA Version
 # openproject-mattermost
 
 OpenProject plugin that talks to Mattermost **as a bot**.
