@@ -1,4 +1,3 @@
-# DONT USE IT, IT'S ALPHA Version
 # openproject-mattermost
 
 OpenProject plugin that talks to Mattermost **as a bot**.
@@ -28,9 +27,11 @@ This is not an incoming webhook. Webhooks cannot edit posts. The bot token needs
 
 ## Requirements
 
-- OpenProject 15 or 16
+- OpenProject 15+ (current core is Rails 8.1 — that is fine)
 - Mattermost 8+ with bot accounts enabled
-- A bot invited to the project channel
+- A bot invited to each project channel
+
+This is an OpenProject plugin. Rails and `OpenProject::Plugins` come from **core**. The gemspec does **not** depend on the 2013 RubyGems gem `openproject-plugins` (that one pins Rails 3.2 and will not bundle).
 
 ## Install
 
@@ -59,6 +60,12 @@ bundle exec rake db:migrate
 
 Packaged installations can use a custom Gemfile as described in the
 [OpenProject plugin docs](https://www.openproject.org/docs/installation-and-operations/configuration/plugins/).
+
+### Bundler: "every version of openproject-mattermost requires rails ~> 3.2.9"
+
+That error is from **1.0.0**, which listed `openproject-plugins ~> 1.0`. That gem is from 2013 and depends on Rails 3.2. **1.0.1+** removes it. Plugin APIs (`ActsAsOpEngine`) already live in OpenProject core, so there is nothing to replace it with — and nothing that should pull Rails from this gem.
+
+Use this tree (version 1.0.1) and run `bundle install` again from the OpenProject checkout. Do not add `gem "openproject-plugins"` yourself.
 
 ## Mattermost bot
 

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+# OpenProject::Plugins lives in OpenProject core, not the 2013
+# "openproject-plugins" gem.
 require "open_project/plugins"
 
 module OpenProject
@@ -25,6 +27,7 @@ module OpenProject
         "openproject-mattermost",
         author_url: "https://www.openproject.org/",
         bundled: false,
+        requires_openproject: ">= 15.0.0",
         settings:
       ) do
         project_module :mattermost, dependencies: :work_package_tracking do

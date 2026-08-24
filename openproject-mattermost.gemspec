@@ -13,6 +13,8 @@ Gem::Specification.new do |s|
     Posts each work package as a single Mattermost status card. Status, dates,
     assignee and progress rewrite that same post (timestamp changes so it UPs).
     Comments, files and other journal changes are pushed as thread replies.
+    OpenProject plugin — requires OpenProject core. Channel ID is per project;
+    one bot token is shared.
   DESC
   s.license = "GPL-3.0"
 
@@ -20,5 +22,10 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = ">= 3.2.0"
 
-  s.add_dependency "openproject-plugins", "~> 1.0"
+  # OpenProject core already ships Rails and OpenProject::Plugins
+  # (ActsAsOpEngine). Do not depend on the 2013 RubyGems gem
+  # "openproject-plugins" (~> 1.0) — it pins rails ~> 3.2.9 and Bundler
+  # will refuse this plugin on current OpenProject (Rails 8.1).
+  # Do not depend on rails either. Only list gems that are not in core.
+  # This plugin uses stdlib Net::HTTP only.
 end
