@@ -16,10 +16,9 @@ module OpenProject
           default: {
             "server_url" => "",
             "bot_token" => "",
-            "bot_name" => "OpenProject",
-            "enabled" => true
+            "bot_name" => "OpenProject"
           },
-          partial: "mattermost/settings"
+          partial: "settings/mattermost"
         }
       end
 
@@ -42,8 +41,8 @@ module OpenProject
              { controller: "/mattermost/admin_settings", action: :show },
              caption: :label_mattermost,
              icon: "comment-discussion",
-             if: ->(*) { User.current.admin? },
-             last: true
+             parent: :admin_integrations,
+             if: ->(*) { User.current.admin? }
 
         menu :project_menu,
              :mattermost,

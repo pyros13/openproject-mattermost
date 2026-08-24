@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2 — 2026-08-24
+
+- Boot fix for OpenProject 17 / Rails 8.1: drop `include Admin::Settings::SettingsHelper` (that constant is not in core). Admin settings now match the GitHub integration controller (`layout "admin"`, `menu_item`, `require_admin`).
+- Plugin settings partial path is `settings/mattermost` so Administration → Plugins → Configure renders.
+
 ## 1.0.1 — 2026-08-24
 
 - Drop the 2013 `openproject-plugins` gemspec dependency. It pinned `rails ~> 3.2.9` and Bundler refused the plugin on OpenProject (Rails 8.1). Plugin APIs (`OpenProject::Plugins::ActsAsOpEngine`) come from OpenProject core. No Rails dependency either.

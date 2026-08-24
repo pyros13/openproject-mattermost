@@ -65,7 +65,11 @@ Packaged installations can use a custom Gemfile as described in the
 
 That error is from **1.0.0**, which listed `openproject-plugins ~> 1.0`. That gem is from 2013 and depends on Rails 3.2. **1.0.1+** removes it. Plugin APIs (`ActsAsOpEngine`) already live in OpenProject core, so there is nothing to replace it with — and nothing that should pull Rails from this gem.
 
-Use this tree (version 1.0.1) and run `bundle install` again from the OpenProject checkout. Do not add `gem "openproject-plugins"` yourself.
+Use this tree (version 1.0.2+) and run `bundle install` again from the OpenProject checkout. Do not add `gem "openproject-plugins"` yourself.
+
+### Boot: `uninitialized constant Admin::Settings::SettingsHelper`
+
+That error is from **1.0.1 and earlier**. OpenProject 17 does not define that helper. **1.0.2** uses the same admin controller pattern as the bundled GitHub integration (`layout "admin"`, `menu_item`, `require_admin`). Update the gem and restart.
 
 ## Mattermost bot
 

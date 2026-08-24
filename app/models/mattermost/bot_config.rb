@@ -4,14 +4,20 @@ module Mattermost
   module BotConfig
     module_function
 
+    def settings
+      Hash(Setting.plugin_openproject_mattermost).with_indifferent_access
+    end
+
     def server_url
-      Setting.plugin_openproject_mattermost[:server_url].presence ||
-        Setting.plugin_openproject_mattermost["server_url"]
+      settings[:server_url].presence
     end
 
     def bot_token
-      Setting.plugin_openproject_mattermost[:bot_token].presence ||
-        Setting.plugin_openproject_mattermost["bot_token"]
+      settings[:bot_token].presence
+    end
+
+    def bot_name
+      settings[:bot_name].presence || "OpenProject"
     end
 
     def ready?
