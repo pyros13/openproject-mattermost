@@ -3,8 +3,47 @@
 module OpenProject
   module Mattermost
     # Builds Mattermost attachment payloads for the root status card
-    # and markdown for thread replies.
+    # and markdown for thread replies. Thread lines use names, never raw ids.
     class Formatter
+      LABELS = {
+        "status_id" => "Status",
+        "status" => "Status",
+        "type_id" => "Type",
+        "type" => "Type",
+        "priority_id" => "Priority",
+        "priority" => "Priority",
+        "assigned_to_id" => "Assignee",
+        "assigned_to" => "Assignee",
+        "responsible_id" => "Accountable",
+        "responsible" => "Accountable",
+        "subject" => "Subject",
+        "start_date" => "Start date",
+        "due_date" => "Due date",
+        "date" => "Date",
+        "done_ratio" => "% Complete",
+        "percentage_done" => "% Complete",
+        "description" => "Description",
+        "category_id" => "Category",
+        "category" => "Category",
+        "version_id" => "Version",
+        "version" => "Version",
+        "parent_id" => "Parent",
+        "parent" => "Parent",
+        "story_points" => "Story points"
+      }.freeze
+
+      ID_MODELS = {
+        "status_id" => %w[Status],
+        "type_id" => %w[Type],
+        "priority_id" => %w[IssuePriority Priority],
+        "assigned_to_id" => %w[Principal User],
+        "responsible_id" => %w[Principal User],
+        "category_id" => %w[Category],
+        "version_id" => %w[Version],
+        "project_id" => %w[Project],
+        "parent_id" => %w[WorkPackage]
+      }.freeze
+
       def initialize(url_helpers: OpenProject::StaticRouting::StaticUrlHelpers.new)
         @url_helpers = url_helpers
       end
@@ -33,12 +72,17 @@ module OpenProject
       end
 
       def thread_message(journal, classified)
+        if classified.opened?
+          author = classified.author_name.presence || "Someone"
+          return "Opened by **#{author}**"
+        end
+
         parts = []
-        author = journal.try(:user).to_s
         parts << classified.notes if classified.notes.present?
 
         classified.thread_details.each do |key, change|
-          parts << format_detail(key, change)
+          line = format_detail(key, change)
+          parts << line if line.present?
         end
 
         classified.attachments.each do |att|
@@ -46,14 +90,27 @@ module OpenProject
           parts << "Attached **#{name}**"
         end
 
-        return "_#{author} updated this work package_" if parts.empty?
+        return if parts.empty?
 
         parts.join("\n")
       end
 
-      def created_message(work_package)
-        author = work_package.author.to_s
-        "#{author} created this work package"
+      def self.plain_text(html)
+        s = html.to_s.dup
+        s.gsub!(/<\s*br\s*\/?\s*>/i, "\n")
+        s.gsub!(/<\s*\/p\s*>/i, "\n")
+        s.gsub!(/<\s*li[^>]*>/i, "• ")
+        s.gsub!(/<[^>]+>/, "")
+        s.gsub!("&nbsp;", " ")
+        s.gsub!("&#39;", "'")
+        s.gsub!("&", "&")
+        s.gsub!("<", "<")
+        s.gsub!(">", ">")
+        s.gsub!(""", '"')
+        s.gsub!(/\u00a0/, " ")
+        s.gsub!(/[ \t]+\n/, "\n")
+        s.gsub!(/\n{3,}/, "\n\n")
+        s.strip
       end
 
       private
@@ -98,12 +155,66 @@ module OpenProject
       end
 
       def format_detail(key, change)
+        key_s = key.to_s
         from, to = Array(change)
-        "**#{human_key(key)}**  #{from.presence || '—'} → #{to.presence || '—'}"
+        from_s = human_value(key_s, from)
+        to_s = human_value(key_s, to)
+        return if from_s == to_s
+
+        if key_s == "description"
+          return "**Description** updated" if from_s == "—"
+          return "**Description**  #{from_s} → #{to_s}"
+        end
+
+        "**#{human_key(key_s)}**  #{from_s} → #{to_s}"
       end
 
       def human_key(key)
-        key.to_s.sub(/_id\z/, "").tr("_", " ").capitalize
+        return LABELS[key] if LABELS[key]
+        if key.match?(/\Acustom_field[s]?_(\d+)\z/)
+          id = Regexp.last_match(1)
+          name = lookup_record(%w[CustomField], id)&.try(:name)
+          return name if name.present?
+        end
+
+        key.sub(/_id\z/, "").tr("_", " ").capitalize
+      end
+
+      def human_value(key, value)
+        return "—" if value.nil? || value == ""
+        return "Yes" if value == true || value == "t" || value == "true"
+        return "No" if value == false || value == "f" || value == "false"
+
+        if %w[done_ratio percentage_done].include?(key)
+          return "#{value}%"
+        end
+
+        if ID_MODELS[key]
+          rec = lookup_record(ID_MODELS[key], value)
+          if rec
+            return "##{rec.id} #{rec.subject}" if rec.respond_to?(:subject) && rec.try(:subject)
+            return rec.try(:name).presence || rec.to_s
+          end
+        end
+
+        if key.match?(/_id\z/) && value.to_s.match?(/\A\d+\z/)
+          return value.to_s
+        end
+
+        text = self.class.plain_text(value.to_s)
+        text = "#{text[0, 180]}…" if text.length > 180
+        text.presence || "—"
+      end
+
+      def lookup_record(class_names, id)
+        Array(class_names).each do |name|
+          klass = name.constantize
+          rec = klass.find_by(id: id)
+          return rec if rec
+        rescue NameError, StandardError
+          next
+        end
+        nil
       end
 
       def work_package_url(work_package)

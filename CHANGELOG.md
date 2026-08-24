@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 — 2026-08-24
+
+- Human-readable thread replies: **Opened by Name**, **Status** New → In progress, comments as the comment text.
+- Drop noise fields (`project`, `author`, `ignore_non_working_days`, derived dates, …) and raw ids. Status/type/assignee/priority resolve to names.
+- Strip HTML (`<br>`, tags) from comments.
+- Deduplicate the same journal (create event + aggregated event) via `last_journal_id`.
+
 ## 1.1.0 — 2026-08-24
 
 - Actually post: work-package journals are handled on the same worker event outgoing webhooks use (`aggregated_work_package_journal_ready`), not a second silent job hop.

@@ -19,9 +19,20 @@ OpenProject journal
         │
         ├─ card fields  →  PUT /api/v4/posts/{id}     (same message, new time)
         └─ notes/files  →  POST /api/v4/posts         (root_id = status card)
-                              + multipart file upload
+                              human-readable thread
 ```
 
+Thread replies look like:
+
+```
+Opened by **Maya Chen**
+
+**Status**  New → In progress
+
+Some Comments
+```
+
+Internal snapshot fields (`project`, `author`, `ignore_non_working_days`) are not posted. Ids are resolved to names. HTML in comments is stripped.
 This is not an incoming webhook. Webhooks cannot edit posts. The bot token needs
 `create_post`, `edit_post`, and `upload_file`. Pin is optional.
 

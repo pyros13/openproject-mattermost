@@ -56,6 +56,14 @@ module OpenProject
         mapping = ::MattermostWorkPackagePost.find_or_initialize_by(work_package: work_package)
         target_channel = mapping.channel_id.presence || setting.channel_id
 
+        if mapping.has_attribute?(:last_journal_id) &&
+           mapping.last_journal_id.present? &&
+           journal.id &&
+           journal.id <= mapping.last_journal_id
+          self.class.log("skip WP ##{work_package.id}: journal #{journal.id} already processed")
+          return
+        end
+
         if mapping.new_record? || mapping.post_id.blank?
           payload = formatter.card_payload(work_package)
           created = client.create_post(
@@ -81,21 +89,26 @@ module OpenProject
           client.pin_post(mapping.post_id) if setting.pin_on_bump
           self.class.log("bumped WP ##{work_package.id} post=#{mapping.post_id}")
         else
-          self.class.log("no bump WP ##{work_package.id} thread=#{classified.thread?} notes=#{classified.notes.present?}")
+          self.class.log("no bump WP ##{work_package.id} thread=#{classified.thread?} notes=#{classified.notes.present?} opened=#{classified.opened?}")
         end
 
-        return unless classified.thread?
-        return if mapping.post_id.blank?
+        if classified.thread? && mapping.post_id.present?
+          text = formatter.thread_message(journal, classified)
+          if text.present?
+            file_ids = upload_attachments(client, target_channel, classified.attachments)
+            client.create_post(
+              channel_id: target_channel,
+              message: text,
+              root_id: mapping.root_id.presence || mapping.post_id,
+              file_ids: file_ids
+            )
+            self.class.log("thread WP ##{work_package.id}: #{text.lines.first.to_s.strip}")
+          end
+        end
 
-        file_ids = upload_attachments(client, target_channel, classified.attachments)
-        text = formatter.thread_message(journal, classified)
-        client.create_post(
-          channel_id: target_channel,
-          message: text,
-          root_id: mapping.root_id.presence || mapping.post_id,
-          file_ids: file_ids
-        )
-        self.class.log("thread WP ##{work_package.id} post=#{mapping.post_id}")
+        if mapping.has_attribute?(:last_journal_id) && journal.id
+          mapping.update_column(:last_journal_id, journal.id)
+        end
       rescue StandardError => e
         self.class.log_error("journal #{journal.try(:id)}", e)
       end
