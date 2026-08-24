@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "json"
+
 module OpenProject
   module Mattermost
     # Posts / bumps / threads a work package to Mattermost.
@@ -50,7 +52,6 @@ module OpenProject
           return
         end
 
-        classified = Classifier.new(settings: setting).call(journal)
         client = ::Mattermost::BotConfig.client
         formatter = Formatter.new
         mapping = ::MattermostWorkPackagePost.find_or_initialize_by(work_package: work_package)
@@ -59,12 +60,21 @@ module OpenProject
         if mapping.has_attribute?(:last_journal_id) &&
            mapping.last_journal_id.present? &&
            journal.id &&
-           journal.id <= mapping.last_journal_id
-          self.class.log("skip WP ##{work_package.id}: journal #{journal.id} already processed")
+           journal.id < mapping.last_journal_id
+          self.class.log("skip WP ##{work_package.id}: older journal #{journal.id} < #{mapping.last_journal_id}")
           return
         end
 
-        if mapping.new_record? || mapping.post_id.blank?
+        snapshot = snapshot_for(mapping, journal)
+        classified = Classifier.new(settings: setting).call(journal, snapshot: snapshot)
+
+        card_missing = mapping.new_record? || mapping.post_id.blank?
+        unless card_missing || classified.bump? || classified.thread?
+          self.class.log("skip WP ##{work_package.id}: no new payload journal=#{journal.id}")
+          return
+        end
+
+        if card_missing
           payload = formatter.card_payload(work_package)
           created = client.create_post(
             channel_id: setting.channel_id,
@@ -75,6 +85,7 @@ module OpenProject
           mapping.root_id = created["id"]
           mapping.channel_id = setting.channel_id
           mapping.last_bumped_at = Time.current
+          mapping.last_journal_id = journal.id if mapping.has_attribute?(:last_journal_id) && journal.id
           mapping.save!
           client.pin_post(mapping.post_id) if setting.pin_on_bump
           self.class.log("created card WP ##{work_package.id} post=#{mapping.post_id} channel=#{setting.channel_id}")
@@ -106,9 +117,7 @@ module OpenProject
           end
         end
 
-        if mapping.has_attribute?(:last_journal_id) && journal.id
-          mapping.update_column(:last_journal_id, journal.id)
-        end
+        persist_snapshot(mapping, journal)
       rescue StandardError => e
         self.class.log_error("journal #{journal.try(:id)}", e)
       end
@@ -168,6 +177,46 @@ module OpenProject
       end
 
       private
+
+      def snapshot_for(mapping, journal)
+        return unless mapping.persisted? && mapping.post_id.present?
+        return unless mapping.has_attribute?(:last_journal_id)
+        return unless journal.id && mapping.last_journal_id
+        return unless journal.id == mapping.last_journal_id
+
+        details = if mapping.has_attribute?(:last_details_json) && mapping.last_details_json.present?
+          parse_details(mapping.last_details_json)
+        else
+          # Row from before 1.1.4: we already posted this journal once.
+          # Treat current details as already shipped so only new notes go out.
+          Hash(journal.try(:details) || journal.try(:get_changes))
+        end
+        notes = mapping.has_attribute?(:last_notes) ? mapping.last_notes : nil
+        { notes: notes, details: details }
+      end
+
+      def persist_snapshot(mapping, journal)
+        return unless mapping.persisted?
+
+        attrs = {}
+        attrs[:last_journal_id] = journal.id if mapping.has_attribute?(:last_journal_id) && journal.id
+        if mapping.has_attribute?(:last_notes)
+          attrs[:last_notes] = journal.try(:notes).to_s
+        end
+        if mapping.has_attribute?(:last_details_json)
+          attrs[:last_details_json] = Hash(journal.try(:details) || journal.try(:get_changes)).to_json
+        end
+        mapping.update_columns(attrs) if attrs.any?
+      rescue StandardError => e
+        self.class.log_error("persist snapshot WP mapping #{mapping.id}", e)
+      end
+
+      def parse_details(json)
+        raw = JSON.parse(json.to_s)
+        raw.each_with_object({}) { |(key, value), out| out[key.to_s] = value }
+      rescue JSON::ParserError, TypeError
+        {}
+      end
 
       def upload_attachments(client, channel_id, attachments)
         attachments.filter_map do |att|

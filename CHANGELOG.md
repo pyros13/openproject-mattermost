@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.4 — 2026-08-24
+
+- Comments and status changes inside OpenProject's journal aggregation window were skipped (`journal N already processed`). The create journal is reused, so we now post the **delta** (new comment text, new status names) instead of ignoring the same id.
+
 ## 1.1.3 — 2026-08-24
 
 - Allow deleting work packages: `mattermost_work_package_posts` (and project settings) now cascade on delete. Bulk delete was hitting `PG::ForeignKeyViolation`.

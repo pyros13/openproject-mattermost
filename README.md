@@ -80,6 +80,8 @@ Use this tree (version **1.1.3+**) and rebundle so the vendor SHA is no longer `
 
 Deleting a work package also deletes its Mattermost mapping (`ON DELETE CASCADE`). Run `db:migrate` after 1.1.3 or bulk delete hits `PG::ForeignKeyViolation`.
 
+Comments and status changes in the first few minutes reuse the create journal (OpenProject aggregation). **1.1.4+** posts the delta on that same journal instead of skipping it.
+
 ### Nothing posted to Mattermost
 
 Outgoing webhooks can fire while this plugin stays quiet if:
