@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2 — 2026-08-24
+
+- Fix SyntaxError in `Formatter.plain_text` (broken quote after HTML entity decode). Comments now use `CGI.unescapeHTML`.
+
 ## 1.1.1 — 2026-08-24
 
 - Human-readable thread replies: **Opened by Name**, **Status** New → In progress, comments as the comment text.

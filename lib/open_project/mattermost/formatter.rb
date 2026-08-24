@@ -96,18 +96,14 @@ module OpenProject
       end
 
       def self.plain_text(html)
+        require "cgi"
         s = html.to_s.dup
-        s.gsub!(/<\s*br\s*\/?\s*>/i, "\n")
-        s.gsub!(/<\s*\/p\s*>/i, "\n")
-        s.gsub!(/<\s*li[^>]*>/i, "• ")
+        s.gsub!(%r{<\s*br\s*/?\s*>}i, "\n")
+        s.gsub!(%r{<\s*/p\s*>}i, "\n")
+        s.gsub!(%r{<\s*li[^>]*>}i, "* ")
         s.gsub!(/<[^>]+>/, "")
-        s.gsub!("&nbsp;", " ")
-        s.gsub!("&#39;", "'")
-        s.gsub!("&", "&")
-        s.gsub!("<", "<")
-        s.gsub!(">", ">")
-        s.gsub!(""", '"')
-        s.gsub!(/\u00a0/, " ")
+        s = CGI.unescapeHTML(s)
+        s.gsub!("\u00a0", " ")
         s.gsub!(/[ \t]+\n/, "\n")
         s.gsub!(/\n{3,}/, "\n\n")
         s.strip
