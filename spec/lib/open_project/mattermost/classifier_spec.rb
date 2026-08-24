@@ -128,6 +128,14 @@ RSpec.describe OpenProject::Mattermost::Classifier do
     expect(result.attachments.map { |a| a.filename }).to eq(["bill_c_r_example.PNG"])
     expect(result.thread?).to eq(true)
   end
+
+  it "applies a live status delta when the journal omitted the change" do
+    result = classifier.call(journal(details: {}, notes: nil))
+    expect(result.bump?).to eq(false)
+    merged = described_class.apply_live_card_delta(result, { "status_id" => [1, 9] })
+    expect(merged.bump?).to eq(true)
+    expect(merged.thread_details["status_id"]).to eq([1, 9])
+  end
 end
 
 RSpec.describe OpenProject::Mattermost::Formatter do

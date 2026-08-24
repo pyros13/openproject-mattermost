@@ -114,6 +114,22 @@ module OpenProject
         )
       end
 
+      def self.apply_live_card_delta(result, delta)
+        return result if delta.blank?
+
+        Result.new(
+          card_details: result.card_details.merge(delta),
+          thread_details: result.thread_details.merge(delta),
+          notes: result.notes,
+          attachments: result.attachments,
+          removed_filenames: result.removed_filenames,
+          bump?: true,
+          thread?: true,
+          opened?: false,
+          author_name: result.author_name
+        )
+      end
+
       def self.card_key?(key)
         k = key.to_s
         return true if CARD_KEYS.include?(k)

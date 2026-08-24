@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.6 — 2026-08-24
+
+- Status card follows the **live work package**, not only journal diffs. "On Hold" (and other statuses that OpenProject folds into an existing journal) was skipped as `no new payload` and Mattermost kept the old status.
+
 ## 1.1.5 — 2026-08-24
 
 - Card accent uses the work package **status color** from OpenProject (Administration → Work packages → Status).

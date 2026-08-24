@@ -67,10 +67,24 @@ module OpenProject
 
         snapshot = snapshot_for(mapping, journal)
         classified = Classifier.new(settings: setting).call(journal, snapshot: snapshot)
+        live_delta = live_card_delta(mapping, work_package)
+        if live_delta.any?
+          classified = Classifier.apply_live_card_delta(classified, live_delta)
+        end
+        stale_card = card_stale?(mapping, work_package)
+
+        self.class.log(
+          "classify WP ##{work_package.id} journal=#{journal.id} " \
+          "status=#{work_package.try(:status_id)} bump=#{classified.bump?} " \
+          "thread=#{classified.thread?} stale_card=#{stale_card} " \
+          "snapshot=#{snapshot ? 'yes' : 'no'} " \
+          "journal_keys=#{Hash(journal.try(:details)).keys.take(16).join(',')}"
+        )
 
         card_missing = mapping.new_record? || mapping.post_id.blank?
-        unless card_missing || classified.bump? || classified.thread?
+        unless card_missing || classified.bump? || classified.thread? || stale_card
           self.class.log("skip WP ##{work_package.id}: no new payload journal=#{journal.id}")
+          persist_snapshot(mapping, journal, work_package, write_card: false)
           return
         end
 
@@ -89,7 +103,7 @@ module OpenProject
           mapping.save!
           client.pin_post(mapping.post_id) if setting.pin_on_bump
           self.class.log("created card WP ##{work_package.id} post=#{mapping.post_id} channel=#{setting.channel_id}")
-        elsif classified.bump?
+        elsif classified.bump? || stale_card
           payload = formatter.card_payload(work_package)
           client.update_post(
             post_id: mapping.post_id,
@@ -98,7 +112,7 @@ module OpenProject
           )
           mapping.update!(last_bumped_at: Time.current)
           client.pin_post(mapping.post_id) if setting.pin_on_bump
-          self.class.log("bumped WP ##{work_package.id} post=#{mapping.post_id}")
+          self.class.log("bumped WP ##{work_package.id} post=#{mapping.post_id} status=#{work_package.status&.name}")
         else
           self.class.log("no bump WP ##{work_package.id} thread=#{classified.thread?} notes=#{classified.notes.present?} opened=#{classified.opened?}")
         end
@@ -117,7 +131,7 @@ module OpenProject
           end
         end
 
-        persist_snapshot(mapping, journal)
+        persist_snapshot(mapping, journal, work_package, write_card: card_missing || classified.bump? || stale_card)
       rescue StandardError => e
         self.class.log_error("journal #{journal.try(:id)}", e)
       end
@@ -168,7 +182,7 @@ module OpenProject
         { notes: notes, details: details }
       end
 
-      def persist_snapshot(mapping, journal)
+      def persist_snapshot(mapping, journal, work_package = nil, write_card: true)
         return unless mapping.persisted?
 
         attrs = {}
@@ -179,9 +193,54 @@ module OpenProject
         if mapping.has_attribute?(:last_details_json)
           attrs[:last_details_json] = Hash(journal.try(:details) || journal.try(:get_changes)).to_json
         end
+        wp = work_package || journal.try(:journable)
+        if write_card && mapping.has_attribute?(:last_card_json) && wp
+          attrs[:last_card_json] = card_state(wp).to_json
+        end
         mapping.update_columns(attrs) if attrs.any?
       rescue StandardError => e
         self.class.log_error("persist snapshot WP mapping #{mapping.id}", e)
+      end
+
+      def card_state(work_package)
+        {
+          "status_id" => work_package.try(:status_id),
+          "assigned_to_id" => work_package.try(:assigned_to_id),
+          "responsible_id" => work_package.try(:responsible_id),
+          "subject" => work_package.try(:subject),
+          "due_date" => work_package.try(:due_date)&.to_s,
+          "start_date" => work_package.try(:start_date)&.to_s,
+          "done_ratio" => work_package.try(:done_ratio),
+          "type_id" => work_package.try(:type_id),
+          "priority_id" => work_package.try(:priority_id)
+        }
+      end
+
+      def live_card_delta(mapping, work_package)
+        return {} unless mapping.persisted? && mapping.post_id.present?
+        return {} unless mapping.has_attribute?(:last_card_json)
+
+        previous = parse_details(mapping.last_card_json)
+        return {} if previous.blank?
+
+        delta = {}
+        card_state(work_package).each do |key, value|
+          old = previous[key]
+          next if old.to_s == value.to_s
+
+          delta[key] = [old, value]
+        end
+        delta
+      end
+
+      def card_stale?(mapping, work_package)
+        return false unless mapping.persisted? && mapping.post_id.present?
+        return false unless mapping.has_attribute?(:last_card_json)
+
+        previous = parse_details(mapping.last_card_json)
+        return true if previous.blank?
+
+        live_card_delta(mapping, work_package).any?
       end
 
       def parse_details(json)
