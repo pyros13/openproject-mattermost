@@ -72,8 +72,8 @@ module OpenProject
       end
 
       def thread_message(journal, classified)
+        author = classified.author_name.presence || "Someone"
         if classified.opened?
-          author = classified.author_name.presence || "Someone"
           return "Opened by **#{author}**"
         end
 
@@ -81,8 +81,13 @@ module OpenProject
         parts << classified.notes if classified.notes.present?
 
         classified.thread_details.each do |key, change|
+          next if Classifier.attachment_key?(key)
           line = format_detail(key, change)
           parts << line if line.present?
+        end
+
+        Array(classified.try(:removed_filenames)).each do |name|
+          parts << "Removed **#{name}**"
         end
 
         classified.attachments.each do |att|
@@ -92,7 +97,7 @@ module OpenProject
 
         return if parts.empty?
 
-        parts.join("\n")
+        "**#{author}**\n#{parts.join("\n")}"
       end
 
       def self.plain_text(html)
@@ -142,12 +147,44 @@ module OpenProject
       end
 
       def status_color(status)
+        hex = extract_status_hex(status)
+        return hex if hex
+
         name = status&.name.to_s.downcase
         return "#5b8c7a" if name.match?(/closed|done|resolved/)
         return "#c48a4a" if name.match?(/progress|active/)
         return "#a78a5a" if name.match?(/wait|hold|blocked/)
 
         "#3aa0c8"
+      end
+
+      def extract_status_hex(status)
+        return if status.nil?
+
+        color = status.try(:color)
+        candidates = [
+          (color if color.is_a?(String)),
+          color.try(:hexcode),
+          color.try(:hex),
+          status.try(:hexcode),
+          status.try(:hex),
+          status.try(:color_code)
+        ]
+        candidates.each do |value|
+          normalized = normalize_hex(value)
+          return normalized if normalized
+        end
+        nil
+      end
+
+      def normalize_hex(value)
+        s = value.to_s.strip
+        s = s.delete_prefix("#")
+        return if s.empty?
+        return "##{s}#{s}" if s.match?(/\A[0-9A-Fa-f]{3}\z/)
+        return "##{s}" if s.match?(/\A[0-9A-Fa-f]{6}\z/)
+
+        nil
       end
 
       def format_detail(key, change)

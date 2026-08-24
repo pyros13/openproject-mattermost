@@ -123,37 +123,10 @@ module OpenProject
       end
 
       def sync_attachment(attachment)
-        return unless attachment
-        return unless attachment.container.is_a?(WorkPackage)
-
-        setting = ::MattermostProjectSetting.for_project(attachment.container.project)
-        unless setting&.enabled? && setting.thread_files && setting.channel_id.present?
-          self.class.log("skip attachment #{attachment.id}: project not posting files")
-          return
-        end
-        unless ::Mattermost::BotConfig.ready?
-          self.class.log("skip attachment #{attachment.id}: bot not ready")
-          return
-        end
-
-        mapping = ::MattermostWorkPackagePost.find_by(work_package: attachment.container)
-        if mapping.blank? || mapping.post_id.blank?
-          self.class.log("skip attachment #{attachment.id}: no root card yet")
-          return
-        end
-
-        client = ::Mattermost::BotConfig.client
-        channel_id = mapping.channel_id.presence || setting.channel_id
-        file_ids = upload_attachments(client, channel_id, [attachment])
-        client.create_post(
-          channel_id: channel_id,
-          message: "Attached **#{attachment.filename}**",
-          root_id: mapping.root_id.presence || mapping.post_id,
-          file_ids: file_ids
-        )
-        self.class.log("attached #{attachment.filename} on WP ##{attachment.container.id}")
-      rescue StandardError => e
-        self.class.log_error("attachment #{attachment.try(:id)}", e)
+        # Files ride with the work-package journal (attachments_N details).
+        # Posting here as well duplicated the file in the thread.
+        self.class.log("skip attachment #{attachment.try(:id)}: files go with the work package journal")
+        nil
       end
 
       def test_bot

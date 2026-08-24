@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "ostruct"
+
 module OpenProject
   module Mattermost
     # Splits an OpenProject journal into:
@@ -41,6 +43,7 @@ module OpenProject
         :thread_details,
         :notes,
         :attachments,
+        :removed_filenames,
         :bump?,
         :thread?,
         :opened?,
@@ -65,6 +68,8 @@ module OpenProject
 
         card = {}
         thread = {}
+        added_files = []
+        removed_files = []
 
         details.each do |key, change|
           key_s = key.to_s
@@ -72,7 +77,9 @@ module OpenProject
           next if noop_change?(change)
 
           if attachment_key?(key_s)
-            thread[key_s] = change if @settings.thread_files
+            added, removed = attachment_change(key_s, change)
+            added_files.concat(added)
+            removed_files.concat(removed)
           elsif card_key?(key_s)
             card[key_s] = change
             thread[key_s] = change unless initial
@@ -82,7 +89,8 @@ module OpenProject
         end
 
         notes = @settings.thread_comments ? notes_full.presence : nil
-        attachments = @settings.thread_files ? journal_attachments(journal) : []
+        attachments = @settings.thread_files ? added_files : []
+        removed_filenames = @settings.thread_files ? removed_files : []
 
         bump = !initial && @settings.bump_on_status && card.any?
         opened = initial
@@ -90,6 +98,7 @@ module OpenProject
           opened ||
           notes.present? ||
           attachments.any? ||
+          removed_filenames.any? ||
           thread.any?
 
         Result.new(
@@ -97,6 +106,7 @@ module OpenProject
           thread_details: thread,
           notes: notes.presence,
           attachments: attachments,
+          removed_filenames: removed_filenames,
           bump?: bump,
           thread?: thread_wanted,
           opened?: opened,
@@ -190,18 +200,30 @@ module OpenProject
           user.to_s
       end
 
-      def journal_attachments(journal)
-        journable = journal.try(:journable)
-        return [] unless journable.respond_to?(:attachments)
-
-        stamped = journal.try(:created_at) || journal.try(:updated_at)
-        journable.attachments.select do |att|
-          next true if stamped.nil?
-
-          att.created_at && (att.created_at - stamped).abs < 5
+      def attachment_change(key, change)
+        from, to = Array(change)
+        id = key[/\d+/]
+        added = []
+        removed = []
+        if file_value?(to) && blankish(from)
+          added << (find_attachment(id) || OpenStruct.new(filename: to.to_s, id: id))
+        elsif file_value?(from) && blankish(to)
+          removed << from.to_s
         end
+        [added, removed]
+      end
+
+      def file_value?(value)
+        value.present? && !blankish(value)
+      end
+
+      def find_attachment(id)
+        return unless id
+        return unless defined?(::Attachment)
+
+        ::Attachment.find_by(id: id)
       rescue StandardError
-        []
+        nil
       end
     end
   end

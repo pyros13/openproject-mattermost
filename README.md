@@ -80,7 +80,7 @@ Use this tree (version **1.1.3+**) and rebundle so the vendor SHA is no longer `
 
 Deleting a work package also deletes its Mattermost mapping (`ON DELETE CASCADE`). Run `db:migrate` after 1.1.3 or bulk delete hits `PG::ForeignKeyViolation`.
 
-Comments and status changes in the first few minutes reuse the create journal (OpenProject aggregation). **1.1.4+** posts the delta on that same journal instead of skipping it.
+The status card uses the **color assigned to that status** in OpenProject (Administration → Work packages → Status). Thread replies start with the user who commented or changed the work package. Files post once (not as a field diff plus an extra attachment event).
 
 ### Nothing posted to Mattermost
 

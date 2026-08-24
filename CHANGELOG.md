@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.5 — 2026-08-24
+
+- Card accent uses the work package **status color** from OpenProject (Administration → Work packages → Status).
+- Thread replies start with the OpenProject user who commented or changed the work package.
+- Files post once: `attachments_N` is a file, not a field diff, and the extra `ATTACHMENT_CREATED` post is skipped.
+
 ## 1.1.4 — 2026-08-24
 
 - Comments and status changes inside OpenProject's journal aggregation window were skipped (`journal N already processed`). The create journal is reused, so we now post the **delta** (new comment text, new status names) instead of ignoring the same id.
