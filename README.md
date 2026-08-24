@@ -76,7 +76,9 @@ Packaged installations can use a custom Gemfile as described in the
 
 That error is from **1.0.0**, which listed `openproject-plugins ~> 1.0`. That gem is from 2013 and depends on Rails 3.2. **1.0.1+** removes it. Plugin APIs (`ActsAsOpEngine`) already live in OpenProject core, so there is nothing to replace it with — and nothing that should pull Rails from this gem.
 
-Use this tree (version **1.1.0+**) and rebundle so the vendor SHA is no longer `bb7f2c81ad20`. Do not add `gem "openproject-plugins"` yourself.
+Use this tree (version **1.1.3+**) and rebundle so the vendor SHA is no longer `bb7f2c81ad20`. Do not add `gem "openproject-plugins"` yourself.
+
+Deleting a work package also deletes its Mattermost mapping (`ON DELETE CASCADE`). Run `db:migrate` after 1.1.3 or bulk delete hits `PG::ForeignKeyViolation`.
 
 ### Nothing posted to Mattermost
 

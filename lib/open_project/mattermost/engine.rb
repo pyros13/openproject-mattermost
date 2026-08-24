@@ -74,6 +74,21 @@ module OpenProject
         end
       end
 
+      config.to_prepare do
+        unless WorkPackage.reflect_on_association(:mattermost_work_package_post)
+          WorkPackage.has_one :mattermost_work_package_post,
+                              class_name: "MattermostWorkPackagePost",
+                              dependent: :delete,
+                              inverse_of: :work_package
+        end
+        unless Project.reflect_on_association(:mattermost_project_setting)
+          Project.has_one :mattermost_project_setting,
+                          class_name: "MattermostProjectSetting",
+                          dependent: :delete,
+                          inverse_of: :project
+        end
+      end
+
       def self.subscribe_mattermost_notifications!
         OpenProject::Notifications.subscribe(
           OpenProject::Events::AGGREGATED_WORK_PACKAGE_JOURNAL_READY

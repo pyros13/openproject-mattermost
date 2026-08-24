@@ -3,7 +3,7 @@
 class CreateMattermostTables < ActiveRecord::Migration[7.1]
   def change
     create_table :mattermost_work_package_posts do |t|
-      t.references :work_package, null: false, foreign_key: true, index: { unique: true }
+      t.references :work_package, null: false, foreign_key: { on_delete: :cascade }, index: { unique: true }
       t.string :post_id, null: false
       t.string :root_id, null: false
       t.string :channel_id, null: false
@@ -12,7 +12,7 @@ class CreateMattermostTables < ActiveRecord::Migration[7.1]
     end
 
     create_table :mattermost_project_settings do |t|
-      t.references :project, null: false, foreign_key: true, index: { unique: true }
+      t.references :project, null: false, foreign_key: { on_delete: :cascade }, index: { unique: true }
       t.boolean :enabled, null: false, default: false
       t.string :channel_id
       t.string :channel_name

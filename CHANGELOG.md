@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.3 — 2026-08-24
+
+- Allow deleting work packages: `mattermost_work_package_posts` (and project settings) now cascade on delete. Bulk delete was hitting `PG::ForeignKeyViolation`.
+
 ## 1.1.2 — 2026-08-24
 
 - Fix SyntaxError in `Formatter.plain_text` (broken quote after HTML entity decode). Comments now use `CGI.unescapeHTML`.
