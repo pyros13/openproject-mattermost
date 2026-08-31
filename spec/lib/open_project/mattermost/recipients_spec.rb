@@ -9,15 +9,31 @@ RSpec.describe OpenProject::Mattermost::Recipients do
     author = OpenStruct.new(id: 1, login: "Maya")
     assignee = OpenStruct.new(id: 2, login: "luca")
     responsible = OpenStruct.new(id: 3, login: "priya")
-    watcher = OpenStruct.new(id: 2, login: "luca")
+    watcher = OpenStruct.new(id: 4, login: "ops")
     wp = OpenStruct.new(
       author: author,
       assigned_to: assignee,
       responsible: responsible,
-      watchers: [watcher]
+      watcher_users: [watcher],
+      watchers: []
     )
     names = described_class.members(wp).map(&:username)
-    expect(names).to contain_exactly("maya", "luca", "priya")
+    expect(names).to contain_exactly("maya", "luca", "priya", "ops")
+  end
+
+  it "expands a group assignee into its users" do
+    group = OpenStruct.new(id: 50, type: "Group", users: [
+      OpenStruct.new(id: 2, login: "luca"),
+      OpenStruct.new(id: 3, login: "priya")
+    ])
+    wp = OpenStruct.new(author: OpenStruct.new(id: 1, login: "maya"), assigned_to: group, watchers: [])
+    expect(described_class.members(wp).map(&:username)).to contain_exactly("maya", "luca", "priya")
+  end
+
+  it "includes extra users (updater, previous DMs)" do
+    wp = OpenStruct.new(author: OpenStruct.new(id: 1, login: "maya"), watchers: [])
+    extra = OpenStruct.new(id: 9, login: "andrey")
+    expect(described_class.members(wp, extra_users: [extra]).map(&:username)).to include("maya", "andrey")
   end
 
   it "falls back to the mail local-part" do

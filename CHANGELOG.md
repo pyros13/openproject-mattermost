@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.3 — 2026-08-31
+
+- DMs go to **every person on the work package**, not only the creator or the person who just edited: author, assignee, accountable, watchers, members of those groups, everyone who already got a DM, and the updater.
+
 ## 1.2.2 — 2026-08-31
 
 - Unknown Mattermost users are **logged and skipped**. Everyone else still gets the channel post and DMs. A missing `admin` no longer aborts the whole send.

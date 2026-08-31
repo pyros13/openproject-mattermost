@@ -56,7 +56,7 @@ module OpenProject
 
         client = ::Mattermost::BotConfig.client
         formatter = Formatter.new
-        dests = destinations_for(setting, work_package, client)
+        dests = destinations_for(setting, work_package, client, extra_users: related_users(journal, work_package))
         if dests.empty?
           self.class.log("skip WP ##{work_package.id}: no destinations (mode=#{setting.notify_mode})")
           return
@@ -163,7 +163,7 @@ module OpenProject
 
       private
 
-      def destinations_for(setting, work_package, client)
+      def destinations_for(setting, work_package, client, extra_users: [])
         list = []
         if setting.notify_group?
           if setting.channel_id.present?
@@ -173,8 +173,10 @@ module OpenProject
           end
         end
         if setting.notify_users?
-          members = Recipients.members(work_package)
-          self.class.log("task members WP ##{work_package.id}: #{members.map(&:username).join(',')}")
+          members = Recipients.members(work_package, extra_users: extra_users)
+          self.class.log(
+            "task members WP ##{work_package.id}: #{members.map(&:username).join(', ').presence || '(none)'}"
+          )
           members.each do |member|
             channel_id = dm_channel_for(client, member, work_package)
             next if channel_id.blank?
@@ -187,7 +189,41 @@ module OpenProject
             )
           end
         end
-        list
+        list.uniq { |dest| [dest.kind, dest.channel_id] }
+      end
+
+      def related_users(journal, work_package)
+        extras = []
+        extras << journal.try(:user)
+        extras.concat mapped_users(work_package)
+        extras.concat journal_users(work_package)
+        extras
+      end
+
+      def mapped_users(work_package)
+        return [] unless defined?(::MattermostWorkPackagePost)
+        return [] unless ::MattermostWorkPackagePost.table_exists?
+        return [] unless ::MattermostWorkPackagePost.column_exists?(:op_user_id)
+
+        ids = ::MattermostWorkPackagePost.where(work_package: work_package)
+                                         .where.not(op_user_id: nil)
+                                         .distinct
+                                         .pluck(:op_user_id)
+        return [] if ids.empty?
+        return [] unless defined?(User)
+
+        User.where(id: ids).to_a
+      rescue StandardError => e
+        self.class.log_error("mapped users WP ##{work_package.id}", e)
+        []
+      end
+
+      def journal_users(work_package)
+        return [] unless work_package.respond_to?(:journals)
+
+        work_package.journals.filter_map { |row| row.try(:user) }
+      rescue StandardError
+        []
       end
 
       def dm_channel_for(client, member, work_package)
