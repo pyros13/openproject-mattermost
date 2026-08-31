@@ -36,6 +36,25 @@ RSpec.describe OpenProject::Mattermost::Recipients do
     expect(described_class.members(wp, extra_users: [extra]).map(&:username)).to include("maya", "andrey")
   end
 
+  it "includes all project members" do
+    project = OpenStruct.new(
+      principals: [
+        OpenStruct.new(id: 10, login: "north"),
+        OpenStruct.new(id: 11, login: "wind")
+      ]
+    )
+    wp = OpenStruct.new(author: OpenStruct.new(id: 1, login: "maya"), project: project, watchers: [])
+    expect(described_class.members(wp).map(&:username)).to include("maya", "north", "wind")
+  end
+
+  it "includes people the work package is shared with" do
+    shared = OpenStruct.new(
+      principal: OpenStruct.new(id: 20, login: "guest")
+    )
+    wp = OpenStruct.new(author: OpenStruct.new(id: 1, login: "maya"), members: [shared], watchers: [])
+    expect(described_class.members(wp).map(&:username)).to include("maya", "guest")
+  end
+
   it "falls back to the mail local-part" do
     user = OpenStruct.new(id: 9, login: nil, mail: "ops@example.com")
     expect(described_class.username_for(user)).to eq("ops")

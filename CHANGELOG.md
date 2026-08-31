@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.4 — 2026-08-31
+
+- DMs also go to **all project members** and anyone the work package is **shared with** (plus the existing author / assignee / accountable / watchers / groups). Unknown Mattermost users are still skipped.
+
 ## 1.2.3 — 2026-08-31
 
 - DMs go to **every person on the work package**, not only the creator or the person who just edited: author, assignee, accountable, watchers, members of those groups, everyone who already got a DM, and the updater.
