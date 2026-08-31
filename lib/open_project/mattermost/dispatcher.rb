@@ -26,6 +26,8 @@ module OpenProject
         warn("#{PREFIX} #{text}")
       end
 
+      Destination = Struct.new(:kind, :channel_id, :username, :op_user_id, keyword_init: true)
+
       def sync_journal(journal)
         work_package = journal.try(:journable)
         unless work_package.is_a?(WorkPackage)
@@ -43,8 +45,8 @@ module OpenProject
           self.class.log("skip WP ##{work_package.id}: Mattermost disabled on #{project&.name}")
           return
         end
-        if setting.channel_id.blank?
-          self.class.log("skip WP ##{work_package.id}: channel id blank on #{project&.name}")
+        unless setting.notify_group? || setting.notify_users?
+          self.class.log("skip WP ##{work_package.id}: notify mode is blank")
           return
         end
         unless ::Mattermost::BotConfig.ready?
@@ -54,84 +56,29 @@ module OpenProject
 
         client = ::Mattermost::BotConfig.client
         formatter = Formatter.new
-        mapping = ::MattermostWorkPackagePost.find_or_initialize_by(work_package: work_package)
-        target_channel = mapping.channel_id.presence || setting.channel_id
+        dests = destinations_for(setting, work_package, client)
+        if dests.empty?
+          self.class.log("skip WP ##{work_package.id}: no destinations (mode=#{setting.notify_mode})")
+          return
+        end
 
-        if mapping.has_attribute?(:last_journal_id) &&
-           mapping.last_journal_id.present? &&
+        primary = primary_mapping(work_package, dests)
+        if primary &&
+           primary.has_attribute?(:last_journal_id) &&
+           primary.last_journal_id.present? &&
            journal.id &&
-           journal.id < mapping.last_journal_id
-          self.class.log("skip WP ##{work_package.id}: older journal #{journal.id} < #{mapping.last_journal_id}")
+           journal.id < primary.last_journal_id &&
+           dests.all? { |dest| existing_mapping(work_package, dest)&.last_journal_id.to_i >= journal.id.to_i }
+          self.class.log("skip WP ##{work_package.id}: older journal #{journal.id} < #{primary.last_journal_id}")
           return
         end
 
-        snapshot = snapshot_for(mapping, journal)
+        snapshot = snapshot_for(primary, journal)
         classified = Classifier.new(settings: setting).call(journal, snapshot: snapshot)
-        live_delta = live_card_delta(mapping, work_package)
-        if live_delta.any?
-          classified = Classifier.apply_live_card_delta(classified, live_delta)
+
+        dests.each do |dest|
+          deliver(journal, work_package, setting, client, formatter, classified, dest)
         end
-        stale_card = card_stale?(mapping, work_package)
-
-        self.class.log(
-          "classify WP ##{work_package.id} journal=#{journal.id} " \
-          "status=#{work_package.try(:status_id)} bump=#{classified.bump?} " \
-          "thread=#{classified.thread?} stale_card=#{stale_card} " \
-          "snapshot=#{snapshot ? 'yes' : 'no'} " \
-          "journal_keys=#{Hash(journal.try(:details)).keys.take(16).join(',')}"
-        )
-
-        card_missing = mapping.new_record? || mapping.post_id.blank?
-        unless card_missing || classified.bump? || classified.thread? || stale_card
-          self.class.log("skip WP ##{work_package.id}: no new payload journal=#{journal.id}")
-          persist_snapshot(mapping, journal, work_package, write_card: false)
-          return
-        end
-
-        if card_missing
-          payload = formatter.card_payload(work_package)
-          created = client.create_post(
-            channel_id: setting.channel_id,
-            message: payload[:message],
-            props: payload[:props]
-          )
-          mapping.post_id = created["id"]
-          mapping.root_id = created["id"]
-          mapping.channel_id = setting.channel_id
-          mapping.last_bumped_at = Time.current
-          mapping.last_journal_id = journal.id if mapping.has_attribute?(:last_journal_id) && journal.id
-          mapping.save!
-          client.pin_post(mapping.post_id) if setting.pin_on_bump
-          self.class.log("created card WP ##{work_package.id} post=#{mapping.post_id} channel=#{setting.channel_id}")
-        elsif classified.bump? || stale_card
-          payload = formatter.card_payload(work_package)
-          client.update_post(
-            post_id: mapping.post_id,
-            message: payload[:message],
-            props: payload[:props]
-          )
-          mapping.update!(last_bumped_at: Time.current)
-          client.pin_post(mapping.post_id) if setting.pin_on_bump
-          self.class.log("bumped WP ##{work_package.id} post=#{mapping.post_id} status=#{work_package.status&.name}")
-        else
-          self.class.log("no bump WP ##{work_package.id} thread=#{classified.thread?} notes=#{classified.notes.present?} opened=#{classified.opened?}")
-        end
-
-        if classified.thread? && mapping.post_id.present?
-          text = formatter.thread_message(journal, classified)
-          if text.present?
-            file_ids = upload_attachments(client, target_channel, classified.attachments)
-            client.create_post(
-              channel_id: target_channel,
-              message: text,
-              root_id: mapping.root_id.presence || mapping.post_id,
-              file_ids: file_ids
-            )
-            self.class.log("thread WP ##{work_package.id}: #{text.lines.first.to_s.strip}")
-          end
-        end
-
-        persist_snapshot(mapping, journal, work_package, write_card: card_missing || classified.bump? || stale_card)
       rescue StandardError => e
         self.class.log_error("journal #{journal.try(:id)}", e)
       end
@@ -152,20 +99,170 @@ module OpenProject
       end
 
       def test_channel(setting)
-        raise Client::Error, "Enable Mattermost and set a Channel ID first" if setting.channel_id.blank?
-
+        client = ::Mattermost::BotConfig.client
         me = test_bot
         name = me["username"] || me["nickname"] || "bot"
-        ::Mattermost::BotConfig.client.create_post(
-          channel_id: setting.channel_id,
-          message: "OpenProject Mattermost plugin is connected as **#{name}**. This project will post status cards in this channel.",
-          props: { from_bot: "true" }
-        )
+        posted = nil
+        if setting.notify_group?
+          raise Client::Error, "Enable Mattermost and set a Channel ID first" if setting.channel_id.blank?
+
+          posted = client.create_post(
+            channel_id: setting.channel_id,
+            message: "OpenProject Mattermost plugin is connected as **#{name}**. This project will post status cards in this channel.",
+            props: { from_bot: "true" }
+          )
+        end
+        if setting.notify_users?
+          username = Recipients.username_for(User.current)
+          raise Client::Error, "Your OpenProject login is blank; cannot open a Mattermost DM" if username.blank?
+
+          dm = client.open_dm(username)
+          posted = client.create_post(
+            channel_id: dm["id"] || dm[:id],
+            message: "OpenProject Mattermost plugin will privately message task members (assignee, accountable, author, watchers) using their OpenProject username as the Mattermost username.",
+            props: { from_bot: "true" }
+          )
+        end
+        posted
       end
 
       private
 
+      def destinations_for(setting, work_package, client)
+        list = []
+        if setting.notify_group?
+          if setting.channel_id.present?
+            list << Destination.new(kind: "group", channel_id: setting.channel_id)
+          else
+            self.class.log("skip group for WP ##{work_package.id}: channel id blank")
+          end
+        end
+        if setting.notify_users?
+          members = Recipients.members(work_package)
+          self.class.log("task members WP ##{work_package.id}: #{members.map(&:username).join(',')}")
+          members.each do |member|
+            dm = client.open_dm(member.username)
+            channel_id = dm["id"] || dm[:id]
+            if channel_id.blank?
+              self.class.log("skip DM @#{member.username}: no channel id from Mattermost")
+              next
+            end
+            list << Destination.new(
+              kind: "dm",
+              channel_id: channel_id,
+              username: member.username,
+              op_user_id: member.user.try(:id)
+            )
+          rescue Client::Error => e
+            self.class.log("skip DM @#{member.username}: #{e.message}")
+          end
+        end
+        list
+      end
+
+      def existing_mapping(work_package, dest)
+        scope = ::MattermostWorkPackagePost.where(work_package: work_package)
+        if dest.channel_id.present?
+          found = scope.find_by(channel_id: dest.channel_id)
+          return found if found
+        end
+        return scope.find_by(work_package: work_package) if dest.kind == "group" && scope.count <= 1
+
+        nil
+      end
+
+      def mapping_for(work_package, dest)
+        mapping = existing_mapping(work_package, dest)
+        mapping ||= ::MattermostWorkPackagePost.new(work_package: work_package)
+        mapping.channel_id = dest.channel_id
+        if mapping.has_attribute?(:target_kind)
+          mapping.target_kind = dest.kind
+        end
+        if mapping.has_attribute?(:mattermost_username)
+          mapping.mattermost_username = dest.username
+        end
+        if mapping.has_attribute?(:op_user_id)
+          mapping.op_user_id = dest.op_user_id
+        end
+        mapping
+      end
+
+      def primary_mapping(work_package, dests)
+        dests.filter_map { |dest| existing_mapping(work_package, dest) }
+             .max_by { |row| row.try(:last_journal_id).to_i }
+      end
+
+      def deliver(journal, work_package, setting, client, formatter, classified, dest)
+        mapping = mapping_for(work_package, dest)
+        this = classified
+        live_delta = live_card_delta(mapping, work_package)
+        this = Classifier.apply_live_card_delta(this, live_delta) if live_delta.any?
+        stale_card = card_stale?(mapping, work_package)
+        card_missing = mapping.new_record? || mapping.post_id.blank?
+        label = dest.kind == "dm" ? "DM @#{dest.username}" : "channel #{dest.channel_id}"
+
+        self.class.log(
+          "classify WP ##{work_package.id} #{label} journal=#{journal.id} " \
+          "status=#{work_package.try(:status_id)} bump=#{this.bump?} " \
+          "thread=#{this.thread?} stale_card=#{stale_card} card_missing=#{card_missing}"
+        )
+
+        unless card_missing || this.bump? || this.thread? || stale_card
+          self.class.log("skip WP ##{work_package.id} #{label}: no new payload journal=#{journal.id}")
+          persist_snapshot(mapping, journal, work_package, write_card: false) if mapping.persisted?
+          return
+        end
+
+        if card_missing
+          payload = formatter.card_payload(work_package)
+          created = client.create_post(
+            channel_id: dest.channel_id,
+            message: payload[:message],
+            props: payload[:props]
+          )
+          mapping.post_id = created["id"]
+          mapping.root_id = created["id"]
+          mapping.channel_id = dest.channel_id
+          mapping.last_bumped_at = Time.current
+          mapping.last_journal_id = journal.id if mapping.has_attribute?(:last_journal_id) && journal.id
+          mapping.save!
+          client.pin_post(mapping.post_id) if setting.pin_on_bump && dest.kind == "group"
+          self.class.log("created card WP ##{work_package.id} #{label} post=#{mapping.post_id}")
+        elsif this.bump? || stale_card
+          payload = formatter.card_payload(work_package)
+          client.update_post(
+            post_id: mapping.post_id,
+            message: payload[:message],
+            props: payload[:props]
+          )
+          mapping.update!(last_bumped_at: Time.current)
+          client.pin_post(mapping.post_id) if setting.pin_on_bump && dest.kind == "group"
+          self.class.log("bumped WP ##{work_package.id} #{label} status=#{work_package.status&.name}")
+        else
+          self.class.log("no bump WP ##{work_package.id} #{label} thread=#{this.thread?}")
+        end
+
+        if this.thread? && mapping.post_id.present?
+          text = formatter.thread_message(journal, this)
+          if text.present?
+            file_ids = upload_attachments(client, dest.channel_id, this.attachments)
+            client.create_post(
+              channel_id: dest.channel_id,
+              message: text,
+              root_id: mapping.root_id.presence || mapping.post_id,
+              file_ids: file_ids
+            )
+            self.class.log("thread WP ##{work_package.id} #{label}: #{text.lines.first.to_s.strip}")
+          end
+        end
+
+        persist_snapshot(mapping, journal, work_package, write_card: card_missing || this.bump? || stale_card)
+      rescue StandardError => e
+        self.class.log_error("deliver WP ##{work_package.id} #{dest.kind} #{dest.username}", e)
+      end
+
       def snapshot_for(mapping, journal)
+        return unless mapping
         return unless mapping.persisted? && mapping.post_id.present?
         return unless mapping.has_attribute?(:last_journal_id)
         return unless journal.id && mapping.last_journal_id

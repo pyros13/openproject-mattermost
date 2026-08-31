@@ -39,6 +39,7 @@ module Mattermost
         :enabled,
         :channel_id,
         :channel_name,
+        :notify_mode,
         :bump_on_status,
         :pin_on_bump,
         :thread_comments,

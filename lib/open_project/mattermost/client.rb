@@ -46,6 +46,20 @@ module OpenProject
         request(:post, "/posts/#{post_id}/pin", {})
       end
 
+      def user_by_username(username)
+        name = username.to_s.strip
+        raise Error, "Mattermost username is blank" if name.blank?
+
+        request(:get, "/users/username/#{URI.encode_www_form_component(name)}")
+      end
+
+      # Opens (or returns) a DM channel between this bot and the Mattermost user.
+      def open_dm(username)
+        other = user_by_username(username)
+        bot = me
+        request(:post, "/channels/direct", [bot["id"], other["id"]])
+      end
+
       def upload_file(channel_id:, filename:, io:, content_type: "application/octet-stream")
         uri = api_uri("/files?channel_id=#{URI.encode_www_form_component(channel_id)}")
         boundary = "opmm#{SecureRandom.hex(8)}"

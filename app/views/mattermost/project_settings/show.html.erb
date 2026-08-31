@@ -14,6 +14,20 @@
       </div>
     </div>
     <div class="form--field -required">
+      <%= styled_label_tag "mattermost_project_setting_notify_mode", t(:label_mattermost_notify_mode) %>
+      <div class="form--field-container">
+        <% MattermostProjectSetting::NOTIFY_MODES.each do |mode| %>
+          <label class="form--label-with-radio" style="display:block;margin-bottom:0.4rem;">
+            <%= radio_button_tag "mattermost_project_setting[notify_mode]", mode, @setting.notify_mode == mode %>
+            <%= t("label_mattermost_notify_#{mode}") %>
+          </label>
+        <% end %>
+      </div>
+      <div class="form--field-instructions">
+        <%= t(:help_mattermost_notify_mode) %>
+      </div>
+    </div>
+    <div class="form--field<%= " -required" if @setting.notify_group? %>">
       <%= styled_label_tag "mattermost_project_setting_channel_id", t(:label_mattermost_channel_id) %>
       <div class="form--field-container">
         <%= styled_text_field_tag "mattermost_project_setting[channel_id]", @setting.channel_id, container_class: "-wide", placeholder: "e.g. h8f3k2n9p1q4r6s7t0vw" %>
@@ -48,7 +62,7 @@
   <%= styled_button_tag t(:button_save), class: "-primary" %>
 <% end %>
 
-<% if @setting.persisted? && @setting.channel_id.present? %>
+<% if @setting.persisted? && (@setting.channel_id.present? || @setting.notify_users?) %>
   <%= styled_form_tag({ controller: "/mattermost/project_settings", action: :test, project_id: @project }, method: :post) do %>
     <section class="form--section">
       <h2><%= t(:label_mattermost_test) %></h2>

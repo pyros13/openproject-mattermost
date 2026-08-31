@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0 — 2026-08-31
+
+- Per-project **Inform**: project channel, private DMs to task members, or both.
+- DMs use each member's OpenProject username as the Mattermost username (assignee, accountable, author, watchers). Same status card + thread as the channel.
+
 ## 1.1.6 — 2026-08-24
 
 - Status card follows the **live work package**, not only journal diffs. "On Hold" (and other statuses that OpenProject folds into an existing journal) was skipped as `no new payload` and Mattermost kept the old status.
