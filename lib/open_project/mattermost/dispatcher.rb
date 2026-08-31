@@ -98,11 +98,13 @@ module OpenProject
         ::Mattermost::BotConfig.client.me
       end
 
-      def test_channel(setting)
+      def test_channel(setting, op_user = nil)
         client = ::Mattermost::BotConfig.client
         me = test_bot
         name = me["username"] || me["nickname"] || "bot"
+        self.class.log("test mode=#{setting.notify_mode} group=#{setting.notify_group?} users=#{setting.notify_users?} user=#{op_user.try(:login)}")
         posted = nil
+        notes = []
         if setting.notify_group?
           raise Client::Error, "Enable Mattermost and set a Channel ID first" if setting.channel_id.blank?
 
@@ -111,19 +113,46 @@ module OpenProject
             message: "OpenProject Mattermost plugin is connected as **#{name}**. This project will post status cards in this channel.",
             props: { from_bot: "true" }
           )
+          notes << "channel post #{posted['id']}"
         end
         if setting.notify_users?
-          username = Recipients.username_for(User.current)
-          raise Client::Error, "Your OpenProject login is blank; cannot open a Mattermost DM" if username.blank?
-
-          dm = client.open_dm(username)
-          posted = client.create_post(
-            channel_id: dm["id"] || dm[:id],
-            message: "OpenProject Mattermost plugin will privately message task members (assignee, accountable, author, watchers) using their OpenProject username as the Mattermost username.",
-            props: { from_bot: "true" }
-          )
+          dm = test_dm(op_user)
+          posted = { "id" => dm["id"] }
+          notes << "DM @#{dm['username']} post #{dm['id']}"
         end
+        if posted.nil?
+          raise Client::Error, "Inform is set to #{setting.notify_mode.inspect} — nothing to send. Save Inform as channel, DMs, or both."
+        end
+        posted["_summary"] = notes.join("; ")
         posted
+      end
+
+      def test_dm(op_user = nil)
+        op_user ||= (defined?(User) && User.respond_to?(:current) ? User.current : nil)
+        raise Client::Error, "No logged-in OpenProject user to DM" if op_user.nil? || op_user.try(:anonymous?)
+
+        client = ::Mattermost::BotConfig.client
+        me = test_bot
+        bot_name = me["username"] || "bot"
+        username = Recipients.username_for(op_user)
+        email = op_user.try(:mail).to_s.strip.presence
+        raise Client::Error, "Your OpenProject account has no login and no email" if username.blank? && email.blank?
+
+        self.class.log("test DM lookup login=#{username} email=#{email}")
+        dm = client.open_direct(username: username, email: email)
+        posted = client.create_post(
+          channel_id: dm["id"],
+          message: "Test DM from OpenProject. This is **#{bot_name}**. Open Direct Messages with this bot — task cards will land here when Inform is per-user or both.\nLooked up OpenProject **#{op_user.try(:name) || username}** as Mattermost **@#{dm['_resolved_username']}**.",
+          props: { from_bot: "true" }
+        )
+        self.class.log("test DM ok mm=@#{dm['_resolved_username']} channel=#{dm['id']} post=#{posted['id']}")
+        {
+          "id" => posted["id"],
+          "channel_id" => dm["id"],
+          "username" => dm["_resolved_username"],
+          "email" => email,
+          "login" => username
+        }
       end
 
       private
@@ -141,7 +170,10 @@ module OpenProject
           members = Recipients.members(work_package)
           self.class.log("task members WP ##{work_package.id}: #{members.map(&:username).join(',')}")
           members.each do |member|
-            dm = client.open_dm(member.username)
+            dm = client.open_direct(
+              username: member.username,
+              email: member.user.try(:mail)
+            )
             channel_id = dm["id"] || dm[:id]
             if channel_id.blank?
               self.class.log("skip DM @#{member.username}: no channel id from Mattermost")

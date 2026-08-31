@@ -12,6 +12,7 @@ OpenProject::Application.routes.draw do
              controller: "mattermost/project_settings",
              only: %i[show update] do
       post :test
+      post :test_dm
     end
   end
 end

@@ -22,8 +22,24 @@ module Mattermost
 
     def test
       @setting = MattermostProjectSetting.find_or_initialize_by(project: @project)
-      created = OpenProject::Mattermost::Dispatcher.new.test_channel(@setting)
-      flash[:notice] = I18n.t(:notice_mattermost_test_posted, post_id: created["id"])
+      created = OpenProject::Mattermost::Dispatcher.new.test_channel(@setting, current_user)
+      summary = created["_summary"] || created["id"]
+      flash[:notice] = I18n.t(:notice_mattermost_test_posted, post_id: summary)
+    rescue OpenProject::Mattermost::Client::Error => e
+      flash[:error] = e.message
+    rescue StandardError => e
+      flash[:error] = "#{e.class}: #{e.message}"
+    ensure
+      redirect_to project_mattermost_settings_path(@project)
+    end
+
+    def test_dm
+      created = OpenProject::Mattermost::Dispatcher.new.test_dm(current_user)
+      flash[:notice] = I18n.t(
+        :notice_mattermost_test_dm,
+        username: created["username"],
+        post_id: created["id"]
+      )
     rescue OpenProject::Mattermost::Client::Error => e
       flash[:error] = e.message
     rescue StandardError => e

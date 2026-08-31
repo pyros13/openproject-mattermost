@@ -53,11 +53,53 @@ module OpenProject
         request(:get, "/users/username/#{URI.encode_www_form_component(name)}")
       end
 
+      def user_by_email(email)
+        addr = email.to_s.strip
+        raise Error, "Mattermost email is blank" if addr.blank?
+
+        request(:get, "/users/email/#{URI.encode_www_form_component(addr)}")
+      end
+
+      def find_user(username: nil, email: nil)
+        errors = []
+        [username.to_s.strip, username.to_s.strip.downcase].uniq.reject(&:blank?).each do |name|
+          begin
+            return user_by_username(name)
+          rescue Error => e
+            errors << "@#{name}: #{e.message}"
+          end
+        end
+        if email.to_s.strip.present?
+          begin
+            return user_by_email(email.to_s.strip)
+          rescue Error => e
+            errors << email.to_s.strip + ": #{e.message}"
+          end
+        end
+        raise Error,
+              "No Mattermost user for OpenProject login #{username.inspect} / email #{email.inspect}. " \
+              "#{errors.presence || 'Nothing to look up'}. " \
+              "Mattermost username must match the OpenProject login, or the emails must match."
+      end
+
       # Opens (or returns) a DM channel between this bot and the Mattermost user.
       def open_dm(username)
-        other = user_by_username(username)
+        open_direct(username: username)
+      end
+
+      def open_direct(username: nil, email: nil)
+        other = find_user(username: username, email: email)
         bot = me
-        request(:post, "/channels/direct", [bot["id"], other["id"]])
+        raise Error, "Bot /users/me has no id" if bot["id"].blank?
+        raise Error, "Mattermost user has no id" if other["id"].blank?
+
+        channel = request(:post, "/channels/direct", [bot["id"], other["id"]])
+        raise Error, "Mattermost DM channel has no id (#{channel.keys.first(8).join(',')})" if channel["id"].blank?
+
+        channel["_resolved_username"] = other["username"]
+        channel["_resolved_user_id"] = other["id"]
+        channel["_resolved_email"] = other["email"]
+        channel
       end
 
       def upload_file(channel_id:, filename:, io:, content_type: "application/octet-stream")

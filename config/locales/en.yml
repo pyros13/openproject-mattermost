@@ -24,7 +24,8 @@ en:
   label_mattermost_thread_files: "Push files into the thread"
   label_mattermost_thread_other: "Push other field changes into the thread"
   button_mattermost_test_bot: "Check bot token"
-  button_mattermost_test_channel: "Send a test post to this channel"
+  button_mattermost_test_channel: "Send a test post (channel and/or DM per Inform)"
+  button_mattermost_test_dm: "Send a test DM to me"
   help_mattermost_server_url: "Base URL without /api/v4, for example https://chat.example.com. Shared by every project."
   help_mattermost_bot_token: "One bot token for the whole instance. Invite that same bot to every project channel. Saving with an empty token keeps the current token."
   help_mattermost_one_bot_many_channels: "The bot (server URL + token) is global. Each project chooses a channel and/or private DMs to task members."
@@ -33,9 +34,11 @@ en:
   help_mattermost_notify_mode: "Group posts in the project channel. Per user opens a Mattermost DM with each task member (assignee, accountable, author, watchers) using their OpenProject username. Both does each."
   help_mattermost_enable_module: "Enable the Mattermost module under Project settings → Modules, check Enabled above, and invite the bot to the channel if using group."
   help_mattermost_test_bot: "Calls Mattermost GET /users/me with the saved token. Does not post."
-  help_mattermost_test_channel: "Sends a test post to the project channel and/or a DM to you, depending on Inform."
+  help_mattermost_test_channel: "Uses the saved Inform setting. Channel only will not DM. Save Inform as DMs or both, then test. Look under Mattermost Direct Messages with the bot — bot DMs often do not ping."
+  help_mattermost_test_dm: "Always DMs you, using your OpenProject login then email to find the Mattermost user. Open Direct Messages → the OpenProject bot."
   notice_mattermost_bot_ok: "Bot token works. Logged in as %{name}."
-  notice_mattermost_test_posted: "Test post sent (id %{post_id}). Check the Mattermost channel or your DM with the bot."
+  notice_mattermost_test_posted: "Test sent (%{post_id}). For DMs open Mattermost → Direct Messages → the bot."
+  notice_mattermost_test_dm: "Test DM sent to Mattermost @%{username} (post %{post_id}). Open Direct Messages with the bot."
   activerecord:
     errors:
       messages:

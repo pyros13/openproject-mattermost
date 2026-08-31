@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1 — 2026-08-31
+
+- Test DM looks up Mattermost by OpenProject **login then email**, and says who it resolved. A dedicated **Send a test DM to me** button always DMs you (even if Inform is still channel-only).
+- Channel-only Inform never sent DMs on Test. Save Inform as DMs or both.
+
 ## 1.2.0 — 2026-08-31
 
 - Per-project **Inform**: project channel, private DMs to task members, or both.

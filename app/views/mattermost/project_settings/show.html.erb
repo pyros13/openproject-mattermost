@@ -62,12 +62,19 @@
   <%= styled_button_tag t(:button_save), class: "-primary" %>
 <% end %>
 
-<% if @setting.persisted? && (@setting.channel_id.present? || @setting.notify_users?) %>
-  <%= styled_form_tag({ controller: "/mattermost/project_settings", action: :test, project_id: @project }, method: :post) do %>
-    <section class="form--section">
-      <h2><%= t(:label_mattermost_test) %></h2>
-      <p class="form--field-instructions"><%= t(:help_mattermost_test_channel) %></p>
-      <%= styled_button_tag t(:button_mattermost_test_channel) %>
-    </section>
-  <% end %>
+<% if @setting.persisted? %>
+  <section class="form--section">
+    <h2><%= t(:label_mattermost_test) %></h2>
+    <p><strong><%= t(:label_mattermost_notify_mode) %>:</strong> <%= t("label_mattermost_notify_#{@setting.notify_mode}") %></p>
+    <p class="form--field-instructions"><%= t(:help_mattermost_test_channel) %></p>
+    <% if @setting.channel_id.present? || @setting.notify_users? %>
+      <%= styled_form_tag({ controller: "/mattermost/project_settings", action: :test, project_id: @project }, method: :post) do %>
+        <%= styled_button_tag t(:button_mattermost_test_channel) %>
+      <% end %>
+    <% end %>
+    <%= styled_form_tag({ controller: "/mattermost/project_settings", action: :test_dm, project_id: @project }, method: :post) do %>
+      <p class="form--field-instructions"><%= t(:help_mattermost_test_dm) %></p>
+      <%= styled_button_tag t(:button_mattermost_test_dm) %>
+    <% end %>
+  </section>
 <% end %>
