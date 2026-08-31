@@ -24,7 +24,12 @@ module Mattermost
       @setting = MattermostProjectSetting.find_or_initialize_by(project: @project)
       created = OpenProject::Mattermost::Dispatcher.new.test_channel(@setting, current_user)
       summary = created["_summary"] || created["id"]
-      flash[:notice] = I18n.t(:notice_mattermost_test_posted, post_id: summary)
+      if summary.to_s.include?("skipped")
+        flash[:warning] = summary
+        flash[:notice] = I18n.t(:notice_mattermost_test_posted, post_id: summary)
+      else
+        flash[:notice] = I18n.t(:notice_mattermost_test_posted, post_id: summary)
+      end
     rescue OpenProject::Mattermost::Client::Error => e
       flash[:error] = e.message
     rescue StandardError => e

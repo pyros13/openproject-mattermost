@@ -116,9 +116,15 @@ module OpenProject
           notes << "channel post #{posted['id']}"
         end
         if setting.notify_users?
-          dm = test_dm(op_user)
-          posted = { "id" => dm["id"] }
-          notes << "DM @#{dm['username']} post #{dm['id']}"
+          begin
+            dm = test_dm(op_user)
+            posted = { "id" => dm["id"] }
+            notes << "DM @#{dm['username']} post #{dm['id']}"
+          rescue StandardError => e
+            self.class.log_error("unknown MM user #{op_user.try(:login)} / #{op_user.try(:mail)} — continuing", e)
+            notes << "DM skipped (no Mattermost user for #{op_user.try(:login)} / #{op_user.try(:mail)})"
+            posted ||= { "id" => "skipped-dm" }
+          end
         end
         if posted.nil?
           raise Client::Error, "Inform is set to #{setting.notify_mode.inspect} — nothing to send. Save Inform as channel, DMs, or both."
@@ -170,26 +176,41 @@ module OpenProject
           members = Recipients.members(work_package)
           self.class.log("task members WP ##{work_package.id}: #{members.map(&:username).join(',')}")
           members.each do |member|
-            dm = client.open_direct(
-              username: member.username,
-              email: member.user.try(:mail)
-            )
-            channel_id = dm["id"] || dm[:id]
-            if channel_id.blank?
-              self.class.log("skip DM @#{member.username}: no channel id from Mattermost")
-              next
-            end
+            channel_id = dm_channel_for(client, member, work_package)
+            next if channel_id.blank?
+
             list << Destination.new(
               kind: "dm",
               channel_id: channel_id,
               username: member.username,
               op_user_id: member.user.try(:id)
             )
-          rescue Client::Error => e
-            self.class.log("skip DM @#{member.username}: #{e.message}")
           end
         end
         list
+      end
+
+      def dm_channel_for(client, member, work_package)
+        dm = client.open_direct(
+          username: member.username,
+          email: member.user.try(:mail)
+        )
+        channel_id = dm["id"] || dm[:id]
+        if channel_id.blank?
+          self.class.log(
+            "unknown MM user @#{member.username} email=#{member.user.try(:mail)} " \
+            "WP ##{work_package.id} — no channel id, continuing with others"
+          )
+          return nil
+        end
+        channel_id
+      rescue StandardError => e
+        self.class.log_error(
+          "unknown MM user @#{member.username} email=#{member.user.try(:mail)} " \
+          "WP ##{work_package.id} — continuing with others",
+          e
+        )
+        nil
       end
 
       def existing_mapping(work_package, dest)

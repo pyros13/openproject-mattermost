@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.2 — 2026-08-31
+
+- Unknown Mattermost users are **logged and skipped**. Everyone else still gets the channel post and DMs. A missing `admin` no longer aborts the whole send.
+
 ## 1.2.1 — 2026-08-31
 
 - Test DM looks up Mattermost by OpenProject **login then email**, and says who it resolved. A dedicated **Send a test DM to me** button always DMs you (even if Inform is still channel-only).
