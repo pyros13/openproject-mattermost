@@ -13,7 +13,7 @@ class CreateMattermostTables < ActiveRecord::Migration[7.1]
 
     create_table :mattermost_project_settings do |t|
       t.references :project, null: false, foreign_key: { on_delete: :cascade }, index: { unique: true }
-      t.boolean :enabled, null: false, default: false
+      t.boolean :enabled, null: false, default: true
       t.string :channel_id
       t.string :channel_name
       t.boolean :bump_on_status, null: false, default: true

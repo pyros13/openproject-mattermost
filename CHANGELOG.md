@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.6 — 2026-09-23
+
+- Enabling the Mattermost module, creating a project, or copying a project turns **enabled** on (it was left off).
+- `PATCH /api/v3/mattermost/projects/:id/settings` accepts `{ "enabled": true }` as well as `notify_mode`. Either field is enough.
+
 ## 1.2.5 — 2026-09-23
 
 - Default Inform is **users** (column, model, and blank values).

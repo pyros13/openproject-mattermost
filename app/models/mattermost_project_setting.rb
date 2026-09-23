@@ -40,8 +40,8 @@ class MattermostProjectSetting < ApplicationRecord
     find_by(project: project)
   end
 
-  # Create the row at project creation so the first task notification
-  # already sees notify_mode "users" instead of "no Mattermost row".
+  # Create the row at project creation. enabled is on so copy/create
+  # does not leave posting off.
   def self.ensure_for_project!(project)
     return if project.nil?
 
@@ -49,7 +49,19 @@ class MattermostProjectSetting < ApplicationRecord
     return setting unless setting.new_record?
 
     setting.notify_mode = "users"
+    setting.enabled = true
     setting.save!
+    setting
+  end
+
+  # Module was just turned on (including a copied project). Force posting on.
+  def self.activate!(project)
+    return if project.nil?
+
+    setting = find_or_initialize_by(project: project)
+    setting.notify_mode = "users" if setting.notify_mode.blank?
+    setting.enabled = true
+    setting.save! if setting.new_record? || setting.changed?
     setting
   end
 

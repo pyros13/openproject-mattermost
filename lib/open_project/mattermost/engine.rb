@@ -113,6 +113,16 @@ module OpenProject
             ::MattermostProjectSetting.ensure_for_project!(project)
           end
         end
+        if defined?(OpenProject::Events::MODULE_ENABLED)
+          OpenProject::Notifications.subscribe(
+            OpenProject::Events::MODULE_ENABLED
+          ) do |payload|
+            enabled_module = payload[:enabled_module] || payload["enabled_module"]
+            next unless enabled_module.try(:name).to_s == "mattermost"
+
+            ::MattermostProjectSetting.activate!(enabled_module.project)
+          end
+        end
       end
     end
   end
