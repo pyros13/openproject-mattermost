@@ -21,9 +21,9 @@ class MattermostProjectSetting < ApplicationRecord
   def thread_other = self[:thread_other]
 
   def notify_mode
-    return "group" unless has_attribute?(:notify_mode)
+    return "users" unless has_attribute?(:notify_mode)
 
-    self[:notify_mode].presence || "group"
+    self[:notify_mode].presence || "users"
   end
 
   def notify_group?
@@ -40,12 +40,25 @@ class MattermostProjectSetting < ApplicationRecord
     find_by(project: project)
   end
 
+  # Create the row at project creation so the first task notification
+  # already sees notify_mode "users" instead of "no Mattermost row".
+  def self.ensure_for_project!(project)
+    return if project.nil?
+
+    setting = find_or_initialize_by(project: project)
+    return setting unless setting.new_record?
+
+    setting.notify_mode = "users"
+    setting.save!
+    setting
+  end
+
   private
 
   def normalize_notify_mode
     return unless has_attribute?(:notify_mode)
 
-    self.notify_mode = "group" if notify_mode.blank?
+    self.notify_mode = "users" if notify_mode.blank?
   end
 
   def normalize_channel_id

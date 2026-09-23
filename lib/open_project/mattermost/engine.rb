@@ -105,7 +105,24 @@ module OpenProject
         ) do |payload|
           NotificationHandler.attachment_created(payload)
         end
+        if defined?(OpenProject::Events::PROJECT_CREATED)
+          OpenProject::Notifications.subscribe(
+            OpenProject::Events::PROJECT_CREATED
+          ) do |payload|
+            project = payload[:project] || payload["project"]
+            ::MattermostProjectSetting.ensure_for_project!(project)
+          end
+        end
       end
     end
   end
+end
+
+OpenProject::Mattermost::Engine.add_api_path :mattermost_project_settings do |id|
+  "#{root}/mattermost/projects/#{id}/settings"
+end
+
+OpenProject::Mattermost::Engine.add_api_endpoint "API::V3::Root" do
+  require "api/v3/mattermost/project_settings_api"
+  mount ::API::V3::Mattermost::ProjectSettingsAPI
 end

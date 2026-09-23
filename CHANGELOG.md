@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.5 — 2026-09-23
+
+- Default Inform is **users** (column, model, and blank values).
+- Creating a project inserts a Mattermost settings row with `notify_mode: "users"` before the first task notification.
+- APIv3 `PATCH /api/v3/mattermost/projects/:id/settings` with `{ "notify_mode": "users" | "group" | "both" }`. `:id` is the project id or identifier. `GET` returns the current mode.
+
 ## 1.2.4 — 2026-08-31
 
 - DMs also go to **all project members** and anyone the work package is **shared with** (plus the existing author / assignee / accountable / watchers / groups). Unknown Mattermost users are still skipped.

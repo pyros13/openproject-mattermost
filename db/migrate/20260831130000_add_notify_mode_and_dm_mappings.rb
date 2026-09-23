@@ -2,7 +2,7 @@
 
 class AddNotifyModeAndDmMappings < ActiveRecord::Migration[7.1]
   def change
-    add_column :mattermost_project_settings, :notify_mode, :string, null: false, default: "group"
+    add_column :mattermost_project_settings, :notify_mode, :string, null: false, default: "users"
 
     add_column :mattermost_work_package_posts, :target_kind, :string, null: false, default: "group"
     add_column :mattermost_work_package_posts, :mattermost_username, :string
