@@ -2,6 +2,7 @@
 
 require "open_project/mattermost/version"
 require "open_project/mattermost/formatter"
+require "open_project/mattermost/card_fields"
 require "open_project/mattermost/classifier"
 require "open_project/mattermost/client"
 require "open_project/mattermost/recipients"

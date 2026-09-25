@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.7 — 2026-09-25
+
+- Administration → Mattermost can choose which attributes are posted, per workflow (work package type). Uncheck “Use the default fields” on a type to give that workflow its own card and thread fields, including that type’s custom fields.
+
 ## 1.2.6 — 2026-09-23
 
 - Enabling the Mattermost module, creating a project, or copying a project turns **enabled** on (it was left off).

@@ -15,6 +15,9 @@ module Mattermost
     def update
       merged = plugin_settings.merge(settings_params)
       merged["bot_token"] = plugin_settings[:bot_token] if merged["bot_token"].blank?
+      if params[:card_fields]
+        merged["card_fields"] = OpenProject::Mattermost::CardFields.normalize(params[:card_fields])
+      end
       Mattermost::BotConfig.write!(merged)
       flash[:notice] = I18n.t(:notice_successful_update)
       redirect_to mattermost_admin_settings_path

@@ -77,11 +77,14 @@ module OpenProject
           return "Opened by **#{author}**"
         end
 
+        work_package = journal.try(:journable)
         parts = []
         parts << classified.notes if classified.notes.present?
 
         classified.thread_details.each do |key, change|
           next if Classifier.attachment_key?(key)
+          next unless CardFields.detail_allowed?(work_package, key)
+
           line = format_detail(key, change)
           parts << line if line.present?
         end
@@ -122,14 +125,9 @@ module OpenProject
       end
 
       def card_fields(work_package)
-        [
-          field("Status", work_package.status&.name),
-          field("Assignee", work_package.assigned_to&.name || "Unassigned"),
-          field("Priority", work_package.priority&.name),
-          field("Due", work_package.due_date&.to_s || "—"),
-          field("% Complete", percent(work_package)),
-          field("Type", work_package.type&.name)
-        ]
+        CardFields.entries(work_package).map do |entry|
+          field(entry[:title], entry[:value])
+        end
       end
 
       def field(title, value)

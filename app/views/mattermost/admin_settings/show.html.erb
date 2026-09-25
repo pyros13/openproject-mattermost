@@ -34,6 +34,32 @@
       </div>
     </div>
   </section>
+
+  <section class="form--section">
+    <h2><%= t(:label_mattermost_workflow_fields) %></h2>
+    <p class="form--field-instructions"><%= t(:help_mattermost_workflow_fields) %></p>
+    <% OpenProject::Mattermost::CardFields.workflows.each do |workflow| %>
+      <fieldset class="form--fieldset" style="margin: 1rem 0; padding: 0.75rem 1rem;">
+        <legend><strong><%= workflow[:name] %></strong></legend>
+        <% unless workflow[:id] == "default" %>
+          <%= hidden_field_tag "card_fields[#{workflow[:id]}][use_default]", "0" %>
+          <label class="form--label-with-check-box" style="display:block; margin-bottom: 0.5rem;">
+            <%= check_box_tag "card_fields[#{workflow[:id]}][use_default]", "1", workflow[:use_default] %>
+            <%= t(:label_mattermost_use_default_fields) %>
+          </label>
+        <% end %>
+        <%= hidden_field_tag "card_fields[#{workflow[:id]}][fields][]", "" %>
+        <div style="display:flex; flex-wrap:wrap; gap: 0.35rem 1rem;">
+          <% workflow[:fields].each do |field| %>
+            <label class="form--label-with-check-box">
+              <%= check_box_tag "card_fields[#{workflow[:id]}][fields][]", field[:key], workflow[:selected].include?(field[:key]) %>
+              <%= field[:label] %>
+            </label>
+          <% end %>
+        </div>
+      </fieldset>
+    <% end %>
+  </section>
   <%= styled_button_tag t(:button_save), class: "-primary" %>
 <% end %>
 
