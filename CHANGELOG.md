@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.9 — 2026-09-25
+
+- List, user, version, and hierarchy custom fields show their names in the card and the thread. A list value is the option label, not the option id. Numbers, dates, text, and yes/no stay as themselves.
+
 ## 1.2.8 — 2026-09-25
 
 - Thread lines use the custom field name (PW Start Time), not “Custom fields 7”.

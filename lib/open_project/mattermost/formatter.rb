@@ -220,6 +220,11 @@ module OpenProject
           return "#{value}%"
         end
 
+        if (match = key.match(/\Acustom_fields?_(\d+)\z/))
+          field = CardFields.find_custom_field(match[1])
+          return CardFields.format_stored_value(field, value)
+        end
+
         if ID_MODELS[key]
           rec = lookup_record(ID_MODELS[key], value)
           if rec

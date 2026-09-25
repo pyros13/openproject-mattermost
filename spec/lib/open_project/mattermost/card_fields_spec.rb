@@ -49,4 +49,11 @@ RSpec.describe OpenProject::Mattermost::CardFields do
       "by_type" => { "4" => ["priority"] }
     )
   end
+
+  it "shows yes or no for boolean custom fields and keeps plain numbers" do
+    expect(described_class.format_stored_value(OpenStruct.new(field_format: "bool"), "1")).to eq("Yes")
+    expect(described_class.format_stored_value(OpenStruct.new(field_format: "bool"), "0")).to eq("No")
+    expect(described_class.format_stored_value(OpenStruct.new(field_format: "int"), "8")).to eq("8")
+    expect(described_class.format_stored_value(OpenStruct.new(field_format: "list"), "Night work")).to eq("Night work")
+  end
 end

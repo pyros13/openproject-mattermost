@@ -249,12 +249,131 @@ module OpenProject
             break
           end
         end
-        return "—" if value.nil? || value == ""
-        return value.join(", ") if value.is_a?(Array)
-
-        Formatter.plain_text(value.to_s)
+        format_stored_value(field, value)
       rescue StandardError
         "—"
+      end
+
+      # Journal details store ids. Turn those into the labels people see
+      # in OpenProject: list options, users, versions, hierarchy items.
+      def self.format_stored_value(field, value)
+        return "—" if value.nil? || value == ""
+
+        format = field.try(:field_format).to_s
+        pieces = split_values(value)
+        shown = pieces.filter_map { |piece| format_piece(field, format, piece) }
+        text = shown.join(", ")
+        return "—" if text.blank?
+
+        text.length > 180 ? "#{text[0, 180]}…" : text
+      rescue StandardError
+        "—"
+      end
+
+      def self.split_values(value)
+        return value.compact if value.is_a?(Array)
+        return [value] unless value.is_a?(String)
+
+        stripped = value.strip
+        return [] if stripped.empty?
+        return stripped.split(/\s*,\s*/) if stripped.match?(/\A\d+(?:\s*,\s*\d+)+\z/)
+
+        [stripped]
+      end
+
+      def self.format_piece(field, format, piece)
+        return if piece.nil? || piece == ""
+        return "Yes" if bool_yes?(piece) && %w[bool boolean].include?(format)
+        return "No" if bool_no?(piece) && %w[bool boolean].include?(format)
+
+        case format
+        when "list"
+          option_label(field, piece)
+        when "user"
+          record_label(piece, %w[User Principal])
+        when "version"
+          record_label(piece, %w[Version])
+        when "hierarchy", "weighted_item_list"
+          hierarchy_label(piece)
+        when "text"
+          Formatter.plain_text(piece.to_s)
+        else
+          if piece.is_a?(String) || piece.is_a?(Numeric) || piece == true || piece == false
+            Formatter.plain_text(piece.to_s)
+          else
+            piece.try(:name).presence || piece.try(:value).presence || piece.try(:label).presence || piece.to_s
+          end
+        end
+      end
+
+      def self.bool_yes?(value)
+        value == true || %w[1 t true yes].include?(value.to_s.strip.downcase)
+      end
+
+      def self.bool_no?(value)
+        value == false || %w[0 f false no].include?(value.to_s.strip.downcase)
+      end
+
+      def self.option_label(field, piece)
+        if piece.respond_to?(:value) && !piece.is_a?(String) && !piece.is_a?(Numeric) && piece.value.present?
+          return piece.value.to_s
+        end
+        return piece.to_s unless piece.to_s.match?(/\A\d+\z/)
+        return piece.to_s unless defined?(::CustomOption)
+
+        found = nil
+        if field.try(:id) && ::CustomOption.respond_to?(:find_by)
+          found = ::CustomOption.find_by(id: piece, custom_field_id: field.id)
+        end
+        found ||= ::CustomOption.find_by(id: piece) if ::CustomOption.respond_to?(:find_by)
+        found.try(:value).presence || piece.to_s
+      rescue StandardError
+        piece.to_s
+      end
+
+      def self.hierarchy_label(piece)
+        return piece.try(:label).presence || piece.try(:name).presence || piece.to_s unless piece.to_s.match?(/\A\d+\z/)
+
+        %w[CustomField::Hierarchy::Item CustomField::Hierarchy::HierarchicalItem].each do |name|
+          klass = constantize(name)
+          next unless klass
+
+          item = klass.find_by(id: piece)
+          next unless item
+
+          label = item.try(:label).presence || item.try(:name).presence || item.try(:short).presence
+          return label if label
+        end
+        piece.to_s
+      rescue StandardError
+        piece.to_s
+      end
+
+      def self.constantize(name)
+        return name.safe_constantize if name.respond_to?(:safe_constantize)
+
+        name.split("::").inject(Object) { |mod, part| mod.const_get(part) }
+      rescue NameError
+        nil
+      end
+
+      def self.record_label(piece, class_names)
+        return piece.try(:name).presence || piece.to_s unless piece.to_s.match?(/\A\d+\z/)
+
+        class_names.each do |name|
+          klass = constantize(name)
+          next unless klass
+
+          rec = klass.find_by(id: piece)
+          next unless rec
+
+          return "##{rec.id} #{rec.subject}" if rec.respond_to?(:subject) && rec.try(:subject).present?
+
+          return rec.try(:name).presence || rec.to_s
+        end
+        piece.to_s
+      rescue StandardError
+        piece.to_s
       end
 
       def self.percent(work_package)
