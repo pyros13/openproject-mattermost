@@ -56,6 +56,7 @@ module OpenProject
       end
 
       def call(journal, snapshot: nil)
+        @selected_fields = selected_fields_for(journal)
         details = stringify_keys(journal.try(:details) || journal.try(:get_changes) || {})
         notes_full = Formatter.plain_text(journal.try(:notes).to_s)
         initial = snapshot.nil? && initial_journal?(journal)
@@ -80,7 +81,7 @@ module OpenProject
             added, removed = attachment_change(key_s, change)
             added_files.concat(added)
             removed_files.concat(removed)
-          elsif card_key?(key_s)
+          elsif card_key?(key_s) || selected_card_field?(key_s)
             card[key_s] = change
             thread[key_s] = change unless initial
           elsif @settings.thread_other && !initial
@@ -117,9 +118,16 @@ module OpenProject
       def self.apply_live_card_delta(result, delta)
         return result if delta.blank?
 
+        thread = result.thread_details.dup
+        delta.each do |key, change|
+          field = CardFields.field_for_detail(key)
+          already = field && thread.keys.any? { |existing| CardFields.field_for_detail(existing) == field }
+          thread[key] = change unless already
+        end
+
         Result.new(
           card_details: result.card_details.merge(delta),
-          thread_details: result.thread_details.merge(delta),
+          thread_details: thread,
           notes: result.notes,
           attachments: result.attachments,
           removed_filenames: result.removed_filenames,
@@ -154,6 +162,20 @@ module OpenProject
       def card_key?(key) = self.class.card_key?(key)
       def noise_key?(key) = self.class.noise_key?(key)
       def attachment_key?(key) = self.class.attachment_key?(key)
+
+      def selected_fields_for(journal)
+        work_package = journal.try(:journable)
+        return [] unless work_package
+
+        CardFields.keys_for(work_package)
+      rescue StandardError
+        []
+      end
+
+      def selected_card_field?(key)
+        field = CardFields.field_for_detail(key)
+        field.present? && Array(@selected_fields).include?(field)
+      end
 
       private
 

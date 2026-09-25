@@ -283,6 +283,11 @@ module OpenProject
 
       def deliver(journal, work_package, setting, client, formatter, classified, dest)
         mapping = mapping_for(work_package, dest)
+        begin
+          work_package.reload if work_package.respond_to?(:reload)
+        rescue StandardError
+          nil
+        end
         this = classified
         live_delta = live_card_delta(mapping, work_package)
         this = Classifier.apply_live_card_delta(this, live_delta) if live_delta.any?
@@ -389,7 +394,7 @@ module OpenProject
       end
 
       def card_state(work_package)
-        {
+        state = {
           "status_id" => work_package.try(:status_id),
           "assigned_to_id" => work_package.try(:assigned_to_id),
           "responsible_id" => work_package.try(:responsible_id),
@@ -400,6 +405,13 @@ module OpenProject
           "type_id" => work_package.try(:type_id),
           "priority_id" => work_package.try(:priority_id)
         }
+        CardFields.keys_for(work_package).each do |key|
+          _title, value = CardFields.pair(work_package, key)
+          state[key] = value.to_s
+        end
+        state
+      rescue StandardError
+        state || {}
       end
 
       def live_card_delta(mapping, work_package)

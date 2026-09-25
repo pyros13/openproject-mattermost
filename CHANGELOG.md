@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.8 — 2026-09-25
+
+- Thread lines use the custom field name (PW Start Time), not “Custom fields 7”.
+- Description changes show the text, not “Description updated”.
+- The main card is rewritten when a selected field changes, including custom fields and description, so it shows the new values.
+
 ## 1.2.7 — 2026-09-25
 
 - Administration → Mattermost can choose which attributes are posted, per workflow (work package type). Uncheck “Use the default fields” on a type to give that workflow its own card and thread fields, including that type’s custom fields.

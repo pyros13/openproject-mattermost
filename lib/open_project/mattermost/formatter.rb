@@ -192,9 +192,10 @@ module OpenProject
         to_s = human_value(key_s, to)
         return if from_s == to_s
 
-        if key_s == "description"
-          return "**Description** updated" if from_s == "—"
-          return "**Description**  #{from_s} → #{to_s}"
+        if key_s == "description" || key_s.end_with?("_description")
+          return "**#{human_key(key_s)}**  #{to_s}" if from_s == "—"
+
+          return "**#{human_key(key_s)}**  #{from_s} → #{to_s}"
         end
 
         "**#{human_key(key_s)}**  #{from_s} → #{to_s}"
@@ -202,9 +203,8 @@ module OpenProject
 
       def human_key(key)
         return LABELS[key] if LABELS[key]
-        if key.match?(/\Acustom_field[s]?_(\d+)\z/)
-          id = Regexp.last_match(1)
-          name = lookup_record(%w[CustomField], id)&.try(:name)
+        if (match = key.match(/\Acustom_fields?_(\d+)\z/))
+          name = CardFields.find_custom_field(match[1]).try(:name)
           return name if name.present?
         end
 
@@ -230,6 +230,10 @@ module OpenProject
 
         if key.match?(/_id\z/) && value.to_s.match?(/\A\d+\z/)
           return value.to_s
+        end
+
+        if value.is_a?(Hash)
+          value = value["raw"] || value[:raw] || value["html"] || value[:html] || value.values.compact.first
         end
 
         text = self.class.plain_text(value.to_s)
